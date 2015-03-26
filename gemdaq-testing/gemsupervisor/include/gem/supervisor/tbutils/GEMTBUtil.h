@@ -38,8 +38,7 @@
 class TH1F;
 class TFile;
 class TCanvas;
-
-class MyTime;
+class TStopwatch;
 
 namespace toolbox {
   namespace fsm {
@@ -210,6 +209,8 @@ namespace gem {
 	  TH1F* histo;
 	  TH1F* histos[128];
 	  TCanvas* outputCanvas;
+
+          TStopwatch timer;
 
 	protected:
 

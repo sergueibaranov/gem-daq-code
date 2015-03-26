@@ -1432,7 +1432,12 @@ void gem::supervisor::tbutils::GEMTBUtil::stopAction(toolbox::Event::Reference e
     hw_semaphore_.give();
     is_running_ = false;
   }
-  
+
+  /*  
+  timer.Stop();
+  timer.Print();
+  */
+
   //  if (histo)
   delete histo;
   histo = 0;
