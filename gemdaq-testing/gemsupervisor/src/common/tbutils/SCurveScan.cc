@@ -23,12 +23,16 @@
 
 XDAQ_INSTANTIATOR_IMPL(gem::supervisor::tbutils::SCurveScan)
 
+bool First = true;
+TH1F* RTime = NULL;
+TCanvas *can = NULL;
+
 void gem::supervisor::tbutils::SCurveScan::ConfigParams::registerFields(xdata::Bag<ConfigParams> *bag)
 {
   latency   = 12U;
-  minThresh = -40;
+  minThresh = -160;
   maxThresh = 0;
-  stepSize  = 1U;
+  stepSize  = 10U;
   currentHisto = 0U;
 
   deviceVT1     = 0x0;
@@ -52,9 +56,9 @@ void gem::supervisor::tbutils::SCurveScan::resetAction(toolbox::Event::Reference
   gem::supervisor::tbutils::GEMTBUtil::resetAction(e);
   
   scanParams_.bag.latency   = 12U;
-  scanParams_.bag.minThresh = -40;
+  scanParams_.bag.minThresh = -160;
   scanParams_.bag.maxThresh = 0;
-  scanParams_.bag.stepSize  = 1U;
+  scanParams_.bag.stepSize  = 10U;
 
   scanParams_.bag.deviceVT1    = 0x0;
   scanParams_.bag.deviceVT2    = 0x0;
@@ -157,7 +161,7 @@ void gem::supervisor::tbutils::SCurveScan::configureAction(toolbox::Event::Refer
     vfatDevice_->setIPreampOut(  80);
     vfatDevice_->setIShaper(    150);
     vfatDevice_->setIShaperFeed(100);
-    vfatDevice_->setIComp(      120);
+    vfatDevice_->setIComp(       90);
 
     vfatDevice_->setLatency(latency_);
     //}
@@ -254,9 +258,9 @@ void gem::supervisor::tbutils::SCurveScan::startAction(toolbox::Event::Reference
 
   //set clock source
   vfatDevice_->setDeviceBaseNode("OptoHybrid.CLOCKING");
-  vfatDevice_->writeReg("VFAT.SOURCE",  0x0);
-  //vfatDevice_->writeReg("VFAT.FALLBACK",0x1);
+  vfatDevice_->writeReg("VFAT.SOURCE",  0x1); // 0x1 external
   vfatDevice_->writeReg("CDCE.SOURCE",  0x0);
+  //vfatDevice_->writeReg("VFAT.FALLBACK",0x1);
   //vfatDevice_->writeReg("CDCE.FALLBACK",0x1);
   
   //send resync
@@ -363,22 +367,49 @@ bool gem::supervisor::tbutils::SCurveScan::run(toolbox::task::WorkLoop* wl)
     wl_->submit(readSig_);
     return false;
   }
+
+  if (First) {
+    First = false;
+
+    if (can) delete can; can = 0;
+    can = new TCanvas("can","Dynamic Filling Example",0,0,400,400);
+    can->SetFillColor(42);
+
+    if (RTime) delete RTime; RTime = 0;
+    RTime = new TH1F("RTime", "Real Time, 1000 triggers", 50, 0, 20);
+    RTime->SetFillColor(48);
+  }
+
   //send triggers
   hw_semaphore_.take();
   vfatDevice_->setDeviceBaseNode("OptoHybrid.FAST_COM");
-  
+
+  timer.Start();
   for (size_t trig = 0; trig < 1000; ++trig) vfatDevice_->writeReg("Send.L1A",0x1);
 
-  timer.Continue();
-  timer.Print();
- 
   //count triggers
   vfatDevice_->setDeviceBaseNode("OptoHybrid.COUNTERS");
   confParams_.bag.triggersSeen = vfatDevice_->readReg("L1A.Internal");
   vfatDevice_->setDeviceBaseNode("OptoHybrid.GEB.VFATS."+confParams_.bag.deviceName.toString());
   hw_semaphore_.give();
-  
+
+  timer.Stop(); Float_t RT = (Float_t)timer.RealTime();
+  cout << " triggersSeen " << confParams_.bag.triggersSeen << " RealTime " << RT << endl;
+
+  if (!First) {
+    if (can) {
+      can->cd();
+      if (RTime) {
+        RTime->Fill(RT);
+        RTime->Draw();
+      }
+      can->Update();
+      can->SaveAs(TString("RTime.png")); 
+    }
+  }
+
   if ((uint64_t)(confParams_.bag.triggersSeen) < (uint64_t)(confParams_.bag.nTriggers)) {
+
     hw_semaphore_.take();
     vfatDevice_->setDeviceBaseNode("OptoHybrid.GEB.VFATS."+confParams_.bag.deviceName.toString());
 
@@ -391,7 +422,7 @@ bool gem::supervisor::tbutils::SCurveScan::run(toolbox::task::WorkLoop* wl)
     hw_semaphore_.give();
     if (bufferDepth < 10) {
       //update
-      sleep(1);
+      sleep(0.001);
       hw_semaphore_.take();
 
       //triggersSeen update 
@@ -413,9 +444,9 @@ bool gem::supervisor::tbutils::SCurveScan::run(toolbox::task::WorkLoop* wl)
       vfatDevice_->setDeviceBaseNode("OptoHybrid.GEB.VFATS."+confParams_.bag.deviceName.toString());
       LOG4CPLUS_DEBUG(getApplicationLogger(),
         "Buffer full, reading out, run mode 0x" << std::hex << (unsigned)vfatDevice_->getRunMode() << std::dec);
+ 
       hw_semaphore_.give();
       wl_semaphore_.give();
- 
       wl_->submit(readSig_);
       return true;
     }
@@ -440,6 +471,8 @@ bool gem::supervisor::tbutils::SCurveScan::run(toolbox::task::WorkLoop* wl)
     vfatDevice_->setDeviceBaseNode("OptoHybrid.GEB.VFATS."+confParams_.bag.deviceName.toString());
     hw_semaphore_.give();
     
+    cout << " triggersSeen " << confParams_.bag.triggersSeen << endl;
+
     if ( (unsigned)scanParams_.bag.deviceVT1 == (unsigned)0x0 ) {
     // ( (unsigned)scanParams_.bag.deviceVT1 == (unsigned)0x0 )
 
@@ -550,7 +583,7 @@ bool gem::supervisor::tbutils::SCurveScan::readFIFO(toolbox::task::WorkLoop* wl)
 
   //maybe not even necessary?
   //vfatDevice_->setRunMode(0);
-  sleep(1);
+  sleep(0.001);
   //read the fifo (x3 times fifo depth), add headers, write to disk, save disk
   boost::format linkForm("LINK%d");
   //should all links have the same fifo depth? if not is this an error?
@@ -678,7 +711,14 @@ bool gem::supervisor::tbutils::SCurveScan::readFIFO(toolbox::task::WorkLoop* wl)
 
     gem::supervisor::tbutils::keepSCEvent(tmpFileName, ievent, ev, ch);
 
-    /*
+    LOG4CPLUS_INFO(getApplicationLogger(),
+		   "Received tracking data word:" << std::endl
+		   << "chipid  :: 0x" << std::setfill('0') << std::setw(4) << std::hex << chipid << std::dec << std::endl
+		   << "<127:64>:: 0x" << std::setfill('0') << std::setw(8) << std::hex << msData << std::dec << std::endl
+		   << "<63:0>  :: 0x" << std::setfill('0') << std::setw(8) << std::hex << lsData << std::dec << std::endl
+                   << "dVT2-1  ::   " << std::setfill(' ') << std::setw(4) << delVT << std::endl
+		   );
+
     LOG4CPLUS_DEBUG(getApplicationLogger(),
 		   "Received tracking data word:" << std::endl
 		   << "bxn     :: 0x" << std::setfill('0') << std::setw(4) << std::hex << bxNum  << std::dec << std::endl
@@ -693,7 +733,7 @@ bool gem::supervisor::tbutils::SCurveScan::readFIFO(toolbox::task::WorkLoop* wl)
 		   << "crc     :: 0x" << std::setfill('0') << std::setw(4) << std::hex << crc    << std::dec << std::endl
                    << "dVT2-1  ::   " << std::setfill(' ') << std::setw(4) << delVT << std::endl
 		   );
-    */
+
     //while (bxNum == bxExp) {
     
     //Maybe add another histogramt that is a combined all channels histogram

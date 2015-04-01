@@ -89,7 +89,7 @@ void gem::supervisor::tbutils::GEMTBUtil::resetAction(toolbox::Event::Reference 
     delete vfatDevice_;
   
   vfatDevice_ = 0;
-  sleep(2);
+  sleep(1);
   hw_semaphore_.give();
 
   //reset parameters to defaults, allow to select new device
