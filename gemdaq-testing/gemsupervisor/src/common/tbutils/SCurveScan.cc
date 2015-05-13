@@ -1,6 +1,8 @@
 #include "gem/supervisor/tbutils/SCurveScan.h"
 
-#include "gem/supervisor/tbutils/SCurveEvent.h"
+//#include "gem/supervisor/tbutils/ThresholdEvent.h"
+#include "gem/readout/GEMDataParker.h"
+#include "gem/readout/GEMDataAMCformat.h"
 #include "gem/hw/vfat/HwVFAT2.h"
 
 #include "TH1.h"
@@ -294,8 +296,7 @@ bool gem::supervisor::tbutils::SCurveScan::run(toolbox::task::WorkLoop* wl)
 //might be better done not as a workloop?
 bool gem::supervisor::tbutils::SCurveScan::readFIFO(toolbox::task::WorkLoop* wl)
 {
-  ChannelData ch;
-  VFATEvent ev;
+  gem::readout::VFATData vfat;
   int ievent=0;
 
   wl_semaphore_.take();
@@ -324,7 +325,6 @@ bool gem::supervisor::tbutils::SCurveScan::readFIFO(toolbox::task::WorkLoop* wl)
       fifoDepth[1] != fifoDepth[2]) {
         LOG4CPLUS_DEBUG(getApplicationLogger(),
           "tracking data fifos had different depths:: " << fifoDepth[0] << "," << fifoDepth[0] << "," << fifoDepth[0]);
-
         //use the minimum
         bufferDepth = std::min(fifoDepth[0],std::min(fifoDepth[1],fifoDepth[2]));
   }
@@ -362,22 +362,12 @@ bool gem::supervisor::tbutils::SCurveScan::readFIFO(toolbox::task::WorkLoop* wl)
     bxNumTr = TrigReg >> 6;
     sBit = TrigReg & 0x0000003F;
 
-    //make sure we are aligned
-
     //if (!checkHeaders(data)) 
-    if (!( 
-	  (((data.at(5)&0xF0000000)>>28)==0xa) && 
-	  (((data.at(5)&0x0000F000)>>12)==0xc) && 
-	  (((data.at(4)&0xF0000000)>>28)==0xe)
-	   )) {
-      //--bufferDepth; 
-      LOG4CPLUS_INFO(getApplicationLogger(),"VFAT headers do not match expectation");
-      vfatDevice_->setDeviceBaseNode("GLIB");
-      bufferDepth = vfatDevice_->readReg(vfatDevice_->getDeviceBaseNode(),"LINK1.TRK_FIFO.DEPTH");
-      TrigReg = vfatDevice_->readReg(vfatDevice_->getDeviceBaseNode(),"TRG_DATA.DATA");
-      continue;
-    }
-    
+    uint16_t b1010, b1100, b1110;
+    b1010 = ((data.at(5) & 0xF0000000)>>28);
+    b1100 = ((data.at(5) & 0x0000F000)>>12);
+    b1110 = ((data.at(4) & 0xF0000000)>>28);
+
     bxNum = data.at(6);
     
     uint16_t bcn, evn, crc, chipid;
@@ -403,37 +393,45 @@ bool gem::supervisor::tbutils::SCurveScan::readFIFO(toolbox::task::WorkLoop* wl)
     uint64_t data4  = ((0x0000ffff & data.at(1)) << 16) | ((0xffff0000 & data.at(0)) >> 16);
 
     lsData = (data3 << 32) | (data4);
-    msData = (data1 << 32) | (data2);
+    msData = (data1 << 32) | (data2); 
 
     crc    = 0x0000ffff & data.at(0);
     delVT = (scanParams_.bag.deviceVT2-scanParams_.bag.deviceVT1);
 
-    // GEM Event Format, Output
-    ch.lsData = lsData;
-    ch.msData = msData;
-    ch.delVT = delVT;
+    delVT = (scanParams_.bag.deviceVT2-scanParams_.bag.deviceVT1);
 
-    ev.BC = ((data.at(5)&0xF0000000)>>28) << 12; // 1010
-    ev.BC = (ev.BC | bcn);
-    ev.EC = ((data.at(5)&0x0000F000)>>12) << 12; // 1100
-    ev.EC = (ev.EC | evn) << 4;
-    ev.EC = (ev.EC | flags);
-    ev.bxExp = bxExp;
-    ev.bxNum = bxNum << 6;
-    ev.bxNum = (ev.bxNum | sBit);
-    ev.ChipID = ((data.at(4)&0xF0000000)>>28) << 12; // 1110
-    ev.ChipID = (ev.ChipID | chipid);
-    ev.crc = crc;
+    vfat.BC     = ( b1010 << 12 ) | (bcn);                // 1010     | bcn:12
+    vfat.EC     = ( b1100 << 12 ) | (evn << 4) | (flags); // 1100     | EC:8      | Flag:4 (zero?)
+    vfat.ChipID = ( b1110 << 12 ) | (chipid);             // 1110     | ChipID:12
+    vfat.lsData = lsData;                                 // lsData:64
+    vfat.msData = msData;                                 // msData:64
+    vfat.crc    = crc;                                    // crc:16
 
-    gem::supervisor::tbutils::keepSCEvent(tmpFileName, ievent, ev, ch);
+    /*
+    vfat.delVT = delVT;
+    vfat.bxNum = (bxNum << 6) | sBit);
+    */
+    // keepEvent(tmpFileName, ievent, ev, ch);
 
-    LOG4CPLUS_INFO(getApplicationLogger(),
-		   "Received tracking data word:" << std::endl
-		   << "chipid  :: 0x" << std::setfill('0') << std::setw(4) << std::hex << chipid << std::dec << std::endl
-		   << "<127:64>:: 0x" << std::setfill('0') << std::setw(8) << std::hex << msData << std::dec << std::endl
-		   << "<63:0>  :: 0x" << std::setfill('0') << std::setw(8) << std::hex << lsData << std::dec << std::endl
-                   << "dVT2-1  ::   " << std::setfill(' ') << std::setw(4) << delVT << std::endl
-		   );
+    if (!(((b1010 == 0xa) && (b1100==0xc) && (b1110==0xe)))){
+      // dump VFAT data
+      LOG4CPLUS_INFO(getApplicationLogger(),"VFAT headers do not match expectation");
+      gem::readout::printVFATdataBits(ievent, vfat);
+
+      vfatDevice_->setDeviceBaseNode("GLIB");
+      bufferDepth = vfatDevice_->readReg(vfatDevice_->getDeviceBaseNode(),"LINK1.TRK_FIFO.DEPTH");
+      TrigReg = vfatDevice_->readReg(vfatDevice_->getDeviceBaseNode(),"TRG_DATA.DATA");
+      continue;
+    }
+
+   /*
+    * dump VFAT data */
+    gem::readout::printVFATdataBits(ievent, vfat);
+
+   /*
+    * GEM data filling
+    gem::readout::GEMDataParker::fillGEMevent(gem, geb, vfat);
+    */
 
     //while (bxNum == bxExp) {
     
