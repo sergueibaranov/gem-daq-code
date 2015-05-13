@@ -69,6 +69,34 @@ void gem::supervisor::tbutils::GEMTBUtil::ConfigParams::registerFields(xdata::Ba
 
 }
 
+void gem::supervisor::tbutils::GEMTBUtil::resetAction(toolbox::Event::Reference e)
+  throw (toolbox::fsm::exception::Exception) {
+
+  is_working_ = true;
+
+  is_initialized_ = false;
+  is_configured_  = false;
+  is_running_     = false;
+
+  hw_semaphore_.take();
+  vfatDevice_->setRunMode(0);
+
+  if (vfatDevice_->isGEMHwDeviceConnected())
+    vfatDevice_->releaseDevice();
+  
+  if (vfatDevice_)
+    delete vfatDevice_;
+  
+  vfatDevice_ = 0;
+  sleep(1);
+  hw_semaphore_.give();
+
+  //reset parameters to defaults, allow to select new device
+  confParams_.bag.nTriggers = 3000U;
+>>>>>>> s-curve
+
+}
+
 gem::supervisor::tbutils::GEMTBUtil::GEMTBUtil(xdaq::ApplicationStub * s)
   throw (xdaq::exception::Exception) :
   xdaq::WebApplication(s),
@@ -1392,7 +1420,6 @@ void gem::supervisor::tbutils::GEMTBUtil::stopAction(toolbox::Event::Reference e
     hw_semaphore_.give();
     is_running_ = false;
   }
-  
   LOG4CPLUS_INFO(getApplicationLogger(),"histo = 0x" << std::hex << histo << std::dec);
   if (histo)
     delete histo;

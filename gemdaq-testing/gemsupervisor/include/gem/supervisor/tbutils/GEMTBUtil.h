@@ -38,8 +38,7 @@
 class TH1F;
 class TFile;
 class TCanvas;
-
-class MyTime;
+class TStopwatch;
 
 namespace toolbox {
   namespace fsm {
