@@ -442,10 +442,11 @@ bool gem::supervisor::tbutils::ThresholdScan::readFIFO(toolbox::task::WorkLoop* 
     */
     // keepEvent(tmpFileName, ievent, ev, ch);
 
+    // dump VFAT data
     if (!(((b1010 == 0xa) && (b1100==0xc) && (b1110==0xe)))){
-      // dump VFAT data
-      gem::readout::printVFATdataBits(ievent, vfat);
+
       LOG4CPLUS_INFO(getApplicationLogger(),"VFAT headers do not match expectation");
+      gem::readout::printVFATdataBits(ievent, vfat);
 
       vfatDevice_->setDeviceBaseNode("GLIB");
       bufferDepth = vfatDevice_->readReg(vfatDevice_->getDeviceBaseNode(),"LINK1.TRK_FIFO.DEPTH");
