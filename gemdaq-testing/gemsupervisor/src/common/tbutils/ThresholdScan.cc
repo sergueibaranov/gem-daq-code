@@ -133,7 +133,6 @@ bool gem::supervisor::tbutils::ThresholdScan::run(toolbox::task::WorkLoop* wl)
   //count triggers
   vfatDevice_->setDeviceBaseNode("OptoHybrid.COUNTERS");
   confParams_.bag.triggersSeen = vfatDevice_->readReg(vfatDevice_->getDeviceBaseNode(),"L1A.Internal");
-
   //confParams_.bag.triggersSeen = vfatDevice_->readReg(vfatDevice_->getDeviceBaseNode(),"L1A.External");
   vfatDevice_->setDeviceBaseNode("OptoHybrid.GEB.VFATS."+confParams_.bag.deviceName.toString());
 
@@ -167,6 +166,7 @@ bool gem::supervisor::tbutils::ThresholdScan::run(toolbox::task::WorkLoop* wl)
   } */
 
   if ((uint64_t)(confParams_.bag.triggersSeen) < (uint64_t)(confParams_.bag.nTriggers)) {
+
     hw_semaphore_.take();
     vfatDevice_->setDeviceBaseNode("OptoHybrid.GEB.VFATS."+confParams_.bag.deviceName.toString());
 
@@ -231,21 +231,21 @@ bool gem::supervisor::tbutils::ThresholdScan::run(toolbox::task::WorkLoop* wl)
 
     wl_semaphore_.take();
     hw_semaphore_.take();
+
     vfatDevice_->setDeviceBaseNode("OptoHybrid.GEB.VFATS."+confParams_.bag.deviceName.toString());
     vfatDevice_->setRunMode(0);
 
     //flush FIFO
     vfatDevice_->setDeviceBaseNode("GLIB.LINK1");
     vfatDevice_->writeReg(vfatDevice_->getDeviceBaseNode(),"TRK_FIFO.FLUSH",0x1);
-
     vfatDevice_->setDeviceBaseNode("OptoHybrid.GEB.VFATS."+confParams_.bag.deviceName.toString());
+
     hw_semaphore_.give();
 
-    LOG4CPLUS_INFO(getApplicationLogger()," ABC Scan point TriggersSeen " 
+    LOG4CPLUS_INFO(getApplicationLogger(),"Scan point TriggersSeen " 
 		   << confParams_.bag.triggersSeen );
 
     if ( (unsigned)scanParams_.bag.deviceVT1 == (unsigned)0x0 ) {
-    // ( (unsigned)scanParams_.bag.deviceVT1 == (unsigned)0x0 )
 
       //wl_semaphore_.take();
       hw_semaphore_.take();
@@ -260,7 +260,6 @@ bool gem::supervisor::tbutils::ThresholdScan::run(toolbox::task::WorkLoop* wl)
 
     }
     else if ( (scanParams_.bag.deviceVT2-scanParams_.bag.deviceVT1) <= scanParams_.bag.maxThresh ) {
-    // else if ( (scanParams_.bag.deviceVT2-scanParams_.bag.deviceVT1) <= scanParams_.bag.maxThresh ) { 
 
       hw_semaphore_.take();
 
