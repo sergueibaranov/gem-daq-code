@@ -10,8 +10,6 @@ namespace gem {
       class SCurveScan : public GEMTBUtil
 	{
 	  
-	  //	  friend class GEMTBUtil;
-	  
 	public:
 	  
 	  XDAQ_INSTANTIATOR();
@@ -51,15 +49,19 @@ namespace gem {
 	    //void getFromFile(const std::string& fileName);
 	    void registerFields(xdata::Bag<ConfigParams> *bag);
 	    
-	    xdata::UnsignedInteger latency;
-	    xdata::UnsignedShort   stepSize;
-
-	    xdata::Integer minThresh;
-	    xdata::Integer maxThresh;
-	    
+	    xdata::UnsignedInteger    latency;
+	    xdata::UnsignedInteger   calPhase;
+	    xdata::UnsignedShort     stepSize;
+	    xdata::UnsignedShort stepSizeVcal;
+	    xdata::Integer          minThresh;
+	    xdata::Integer          maxThresh;
+	    xdata::Integer            minVcal;
+	    xdata::Integer            maxVcal;
 	    xdata::UnsignedShort currentHisto;
-	    xdata::UnsignedShort deviceVT1;
-	    xdata::UnsignedShort deviceVT2;
+	    xdata::UnsignedShort    deviceVT1;
+	    xdata::UnsignedShort    deviceVT2;
+	    xdata::UnsignedShort    deviceVC1;
+	    xdata::UnsignedShort    deviceVC2;
 
 	  };
 
@@ -69,7 +71,8 @@ namespace gem {
 	  xdata::Bag<ConfigParams> scanParams_;
 
 	  int minThresh_, maxThresh_;
-	  uint64_t stepSize_, latency_;
+          int minVcal_, maxVcal_;
+	  uint64_t stepSize_, stepSizeVcal_, latency_;
 	  
 	protected:
 	  
