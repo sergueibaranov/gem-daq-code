@@ -8,6 +8,7 @@
 #include "TH1.h"
 #include "TFile.h"
 #include "TCanvas.h"
+#include <TFrame.h>
 #include "TROOT.h"
 #include "TString.h"
 #include "TError.h"
@@ -22,6 +23,8 @@
 
 #include "cgicc/HTTPRedirectHeader.h"
 #include "gem/supervisor/tbutils/VFAT2XMLParser.h"
+
+uint64_t event;
 
 XDAQ_INSTANTIATOR_IMPL(gem::supervisor::tbutils::SCurveScan)
 
@@ -111,6 +114,7 @@ bool gem::supervisor::tbutils::SCurveScan::run(toolbox::task::WorkLoop* wl)
       //hw_semaphore_.give();
       //if stop action has killed the run, take the final readout
       wl_semaphore_.give();
+      event = 0;
       wl_->submit(readSig_);
       return false;
     }
@@ -134,8 +138,8 @@ bool gem::supervisor::tbutils::SCurveScan::run(toolbox::task::WorkLoop* wl)
     }
 
     vfatDevice_->setDeviceBaseNode("OptoHybrid.COUNTERS");
-    confParams_.bag.triggersSeen = vfatDevice_->readReg(vfatDevice_->getDeviceBaseNode(),"CalPulse.Total");
-    // confParams_.bag.triggersSeen = vfatDevice_->readReg(vfatDevice_->getDeviceBaseNode(),"L1A.Internal");
+    // confParams_.bag.triggersSeen = vfatDevice_->readReg(vfatDevice_->getDeviceBaseNode(),"CalPulse.Total");
+    confParams_.bag.triggersSeen = vfatDevice_->readReg(vfatDevice_->getDeviceBaseNode(),"L1A.External");
     vfatDevice_->setDeviceBaseNode("OptoHybrid.GEB.VFATS."+confParams_.bag.deviceName.toString());
   
     LOG4CPLUS_INFO(getApplicationLogger(),"::run "
@@ -150,14 +154,14 @@ bool gem::supervisor::tbutils::SCurveScan::run(toolbox::task::WorkLoop* wl)
     hw_semaphore_.give();
   
     LOG4CPLUS_INFO(getApplicationLogger(),"::run "
-        " TriggersSeen " << confParams_.bag.triggersSeen);
+        "TriggersSeen " << confParams_.bag.triggersSeen);
   
     if ((uint64_t)(confParams_.bag.triggersSeen) < (uint64_t)(confParams_.bag.nTriggers)) {
   
         hw_semaphore_.take();
         vfatDevice_->setDeviceBaseNode("OptoHybrid.GEB.VFATS."+confParams_.bag.deviceName.toString());
     
-        LOG4CPLUS_DEBUG(getApplicationLogger(),"::run"
+        LOG4CPLUS_DEBUG(getApplicationLogger(),"::run "
 	    << "not enough triggers, run mode 0x" << std::hex << (unsigned)vfatDevice_->getRunMode() << std::dec);
         
         vfatDevice_->setDeviceBaseNode("GLIB");
@@ -176,11 +180,11 @@ bool gem::supervisor::tbutils::SCurveScan::run(toolbox::task::WorkLoop* wl)
       
             //triggersSeen update 
             vfatDevice_->setDeviceBaseNode("OptoHybrid.COUNTERS");
-            confParams_.bag.triggersSeen = vfatDevice_->readReg(vfatDevice_->getDeviceBaseNode(),"CalPulse.Total");
+            confParams_.bag.triggersSeen = vfatDevice_->readReg(vfatDevice_->getDeviceBaseNode(),"L1A.External");
             vfatDevice_->setDeviceBaseNode("OptoHybrid.GEB.VFATS."+confParams_.bag.deviceName.toString());
       
-            LOG4CPLUS_INFO(getApplicationLogger(),"::run"
-                << " not enough entries in the buffer, run mode 0x" 
+            LOG4CPLUS_INFO(getApplicationLogger(),"::run "
+                << "not enough entries in the buffer, run mode 0x" 
                 << std::hex << (unsigned)vfatDevice_->getRunMode() << std::dec);
       
             hw_semaphore_.give();
@@ -191,33 +195,36 @@ bool gem::supervisor::tbutils::SCurveScan::run(toolbox::task::WorkLoop* wl)
             //maybe don't do the readout as a workloop?
             hw_semaphore_.take();
             vfatDevice_->setDeviceBaseNode("OptoHybrid.GEB.VFATS."+confParams_.bag.deviceName.toString());
-            LOG4CPLUS_DEBUG(getApplicationLogger(),
+
+            LOG4CPLUS_DEBUG(getApplicationLogger(),"::run "
               "Buffer full, reading out, run mode 0x" << std::hex << (unsigned)vfatDevice_->getRunMode() << std::dec);
        
             hw_semaphore_.give();
             wl_semaphore_.give();
+            event = 0;
             wl_->submit(readSig_);
             return true;
         }
         //wl_semaphore_.give();
-      }
+    }
       else {
     
         hw_semaphore_.take();
         vfatDevice_->setDeviceBaseNode("OptoHybrid.GEB.VFATS."+confParams_.bag.deviceName.toString());
     
-        LOG4CPLUS_INFO(getApplicationLogger(),"::run"
-            <<" enough triggers, reading out, run mode 0x" 
+        LOG4CPLUS_INFO(getApplicationLogger(),"::run "
+            <<"enough triggers, reading out, run mode 0x" 
             << std::hex << (unsigned)vfatDevice_->getRunMode() << std::dec);
-    
-        hw_semaphore_.give();
-        wl_semaphore_.give();
-        wl_->submit(readSig_);
-        wl_semaphore_.take();
-        hw_semaphore_.take();
     
         vfatDevice_->setDeviceBaseNode("OptoHybrid.GEB.VFATS."+confParams_.bag.deviceName.toString());
         vfatDevice_->setRunMode(0);
+
+        hw_semaphore_.give();
+        wl_semaphore_.give();
+        event = 0;
+        wl_->submit(readSig_);
+        wl_semaphore_.take();
+        hw_semaphore_.take();
     
         //flush FIFO
         vfatDevice_->setDeviceBaseNode("GLIB.LINK1");
@@ -229,22 +236,21 @@ bool gem::supervisor::tbutils::SCurveScan::run(toolbox::task::WorkLoop* wl)
         LOG4CPLUS_INFO(getApplicationLogger(),"::run "
 	    << "scan point TriggersSeen " << confParams_.bag.triggersSeen );
     
-        LOG4CPLUS_INFO(getApplicationLogger(),"::run 2"
-	    << " deviceVC2 " << scanParams_.bag.deviceVC2 << " deviceVC1 " << scanParams_.bag.deviceVC1 
-            << " minVcal " << scanParams_.bag.minVcal
-		       << " VC2-VC1 " << (scanParams_.bag.deviceVC2 - scanParams_.bag.deviceVC1) );
+        LOG4CPLUS_INFO(getApplicationLogger(),"::run 2 "
+	    << "deviceVC2 " << scanParams_.bag.deviceVC2 << " deviceVC1 " << scanParams_.bag.deviceVC1 
+            << " minVcal " << scanParams_.bag.minVcal << " VC2-VC1 " << (scanParams_.bag.deviceVC2 - scanParams_.bag.deviceVC1) );
 
-        if ( (unsigned)scanParams_.bag.deviceVC2 - (unsigned)scanParams_.bag.deviceVC1 == (unsigned)0x0 ) {
+        if ( scanParams_.bag.deviceVC2 - scanParams_.bag.deviceVC1 <= scanParams_.bag.stepSizeVcal ) {
     
             //wl_semaphore_.take();
             hw_semaphore_.take();
       
             LOG4CPLUS_INFO(getApplicationLogger(),"::run "
-		<< " VC2-VC1 is 0, reading out, run mode 0x " 
+		<< "VC2-VC1 is 0, reading out, run mode 0x" 
                 << std::hex << (unsigned)vfatDevice_->getRunMode() << std::dec );
       
             hw_semaphore_.give();
-            wl_semaphore_.give();
+            //SB wl_semaphore_.give();
             wl_->submit(stopSig_);
             return false;
         }
@@ -255,30 +261,25 @@ bool gem::supervisor::tbutils::SCurveScan::run(toolbox::task::WorkLoop* wl)
             vfatDevice_->setDeviceBaseNode("OptoHybrid.GEB.VFATS."+confParams_.bag.deviceName.toString());
       
             LOG4CPLUS_INFO(getApplicationLogger(),"::run " 
-                << " VC2= " << scanParams_.bag.deviceVC2 << " VC2-VC1= " << scanParams_.bag.deviceVC2-scanParams_.bag.deviceVC1 
- 	        << " bag.maxVcal " << scanParams_.bag.maxVcal); 
+                << "VC1= " << scanParams_.bag.deviceVC1 << " VC2-VC1= " << scanParams_.bag.deviceVC2-scanParams_.bag.deviceVC1 
+ 	        << " maxVcal " << scanParams_.bag.maxVcal); 
       
             LOG4CPLUS_INFO(getApplicationLogger(),"::run "
-	        << " VT2-VT1 is > than 0x0, run mode 0x" 
+	        << "VT2-VT1 is > 0x0, run mode 0x" 
                 << std::hex << (unsigned)vfatDevice_->getRunMode() << std::dec);
       
-            hw_semaphore_.give();
-            hw_semaphore_.take();
-      
-            if (scanParams_.bag.deviceVC2 > scanParams_.bag.stepSizeVcal) {
+            if (scanParams_.bag.deviceVC2 - scanParams_.bag.deviceVC1 > scanParams_.bag.stepSizeVcal) {
               vfatDevice_->setVCal(scanParams_.bag.deviceVC1 + scanParams_.bag.stepSizeVcal);
-            } else {
-      	      vfatDevice_->setVCal(0);
             }
       
             scanParams_.bag.deviceVT1    = vfatDevice_->getVThreshold1();
             scanParams_.bag.deviceVT2    = vfatDevice_->getVThreshold2();
             confParams_.bag.triggersSeen = 0;
       
-            //SB
             scanParams_.bag.deviceVC1    = vfatDevice_->getVCal();
+
             LOG4CPLUS_INFO(getApplicationLogger(),"::run "
-	        << " new deviceVC1/getVcal " << scanParams_.bag.deviceVC1 );
+	        << "new deviceVC1/getVcal " << scanParams_.bag.deviceVC1 );
 
             vfatDevice_->setDeviceBaseNode("OptoHybrid.COUNTERS.RESETS");
             vfatDevice_->writeReg(vfatDevice_->getDeviceBaseNode(),"L1A.External",0x1);
@@ -290,8 +291,8 @@ bool gem::supervisor::tbutils::SCurveScan::run(toolbox::task::WorkLoop* wl)
             vfatDevice_->setRunMode(1);
             vfatDevice_->setDeviceBaseNode("OptoHybrid.GEB.VFATS."+confParams_.bag.deviceName.toString());
       
-            LOG4CPLUS_INFO(getApplicationLogger(),"::run" 
-		<< " Resubmitting the run workloop, run mode 0x" << std::hex << (unsigned)vfatDevice_->getRunMode() << std::dec);
+            LOG4CPLUS_INFO(getApplicationLogger(),"::run " 
+		<< "Resubmitting the run workloop, run mode 0x" << std::hex << (unsigned)vfatDevice_->getRunMode() << std::dec);
       
             hw_semaphore_.give();
             wl_semaphore_.give();	
@@ -303,7 +304,7 @@ bool gem::supervisor::tbutils::SCurveScan::run(toolbox::task::WorkLoop* wl)
             vfatDevice_->setDeviceBaseNode("OptoHybrid.GEB.VFATS."+confParams_.bag.deviceName.toString());
       
             LOG4CPLUS_INFO(getApplicationLogger(),"::run 3"
-	    << " deviceVC2 " << scanParams_.bag.deviceVC2 << " deviceVC1 " << scanParams_.bag.deviceVC1 
+	    << "deviceVC2 " << scanParams_.bag.deviceVC2 << " deviceVC1 " << scanParams_.bag.deviceVC1 
             << " minVcal " << scanParams_.bag.minVcal
 	    << " stepSizeVcal " << scanParams_.bag.stepSizeVcal );
 
@@ -359,8 +360,8 @@ bool gem::supervisor::tbutils::SCurveScan::readFIFO(toolbox::task::WorkLoop* wl)
     if (fifoDepth[0] != fifoDepth[1] || 
         fifoDepth[0] != fifoDepth[2] || 
         fifoDepth[1] != fifoDepth[2]) {
-          LOG4CPLUS_DEBUG(getApplicationLogger(),
-            "tracking data fifos had different depths:: " << fifoDepth[0] << "," << fifoDepth[0] << "," << fifoDepth[0]);
+          LOG4CPLUS_DEBUG(getApplicationLogger(),"::readFIFO "
+	      << "tracking data fifos had different depths:: " << fifoDepth[0] << "," << fifoDepth[0] << "," << fifoDepth[0]);
           //use the minimum
           bufferDepth = std::min(fifoDepth[0],std::min(fifoDepth[1],fifoDepth[2]));
     }
@@ -371,19 +372,21 @@ bool gem::supervisor::tbutils::SCurveScan::readFIFO(toolbox::task::WorkLoop* wl)
     bool isFirst = true;
     uint32_t bxNum, bxExp;
   
-    LOG4CPLUS_INFO(getApplicationLogger(),"::readFIFO 1" 
-          << confParams_.bag.deviceName.toString() << " ChipID 0x" << hex 
-		   << confParams_.bag.deviceChipID << " bufferDepth " << bufferDepth << dec);
-
     while (bufferDepth) {
   
       std::vector<uint32_t> data;
       //readInWords(data);
+
       vfatDevice_->setDeviceBaseNode("OptoHybrid.GEB.TRK_DATA.COL1");
       
-      LOG4CPLUS_DEBUG(getApplicationLogger(),"Trying to read register "<<vfatDevice_->getDeviceBaseNode()<<".DATA_RDY");
+      LOG4CPLUS_DEBUG(getApplicationLogger(),"::readFIFO "
+	  << "Trying to read register "<<vfatDevice_->getDeviceBaseNode()<<".DATA_RDY");
+
       if (vfatDevice_->readReg(vfatDevice_->getDeviceBaseNode(),"DATA_RDY")) {
-        LOG4CPLUS_DEBUG(getApplicationLogger(),"Trying to read the block at "<<vfatDevice_->getDeviceBaseNode()<<".DATA");
+
+        LOG4CPLUS_DEBUG(getApplicationLogger(),"::readFIFO " 
+            <<" Trying to read the block at "<<vfatDevice_->getDeviceBaseNode()<<".DATA");
+
         //data = vfatDevice_->readBlock("OptoHybrid.GEB.TRK_DATA.COL1.DATA");
         //data = vfatDevice_->readBlock("OptoHybrid.GEB.TRK_DATA.COL1.DATA",7);
         for (int word = 0; word < 7; ++word) {
@@ -413,7 +416,7 @@ bool gem::supervisor::tbutils::SCurveScan::readFIFO(toolbox::task::WorkLoop* wl)
       uint16_t bcn, evn, crc, chipid;
       uint64_t msData, lsData;
       uint8_t  flags;
-      double   delVT;
+      double   delVC;
   
       if (isFirst)
         bxExp = bxNum;
@@ -436,7 +439,7 @@ bool gem::supervisor::tbutils::SCurveScan::readFIFO(toolbox::task::WorkLoop* wl)
       msData = (data1 << 32) | (data2); 
   
       crc    = 0x0000ffff & data.at(0);
-      delVT = (scanParams_.bag.deviceVT2-scanParams_.bag.deviceVT1);
+      delVC  = scanParams_.bag.deviceVC1; 
   
       vfat.BC     = ( b1010 << 12 ) | (bcn);                // 1010     | bcn:12
       vfat.EC     = ( b1100 << 12 ) | (evn << 4) | (flags); // 1100     | EC:8      | Flag:4 (zero?)
@@ -445,10 +448,6 @@ bool gem::supervisor::tbutils::SCurveScan::readFIFO(toolbox::task::WorkLoop* wl)
       vfat.msData = msData;                                 // msData:64
       vfat.crc    = crc;                                    // crc:16
   
-    LOG4CPLUS_INFO(getApplicationLogger(),"::readFIFO 2" 
-          << confParams_.bag.deviceName.toString() << " ChipID 0x" << hex 
-		   << confParams_.bag.deviceChipID << " bufferDepth " << bufferDepth << dec);
-
       /*
       vfat.delVT = delVT;
       vfat.bxNum = (bxNum << 6) | sBit);
@@ -457,7 +456,9 @@ bool gem::supervisor::tbutils::SCurveScan::readFIFO(toolbox::task::WorkLoop* wl)
   
       if (!(((b1010 == 0xa) && (b1100==0xc) && (b1110==0xe)))){
         // dump VFAT data
-        LOG4CPLUS_INFO(getApplicationLogger(),"VFAT headers do not match expectation");
+        LOG4CPLUS_INFO(getApplicationLogger(),"::readFIFO " 
+            << "VFAT headers do not match expectation");
+
         gem::readout::printVFATdataBits(ievent, vfat);
   
         vfatDevice_->setDeviceBaseNode("GLIB");
@@ -478,46 +479,63 @@ bool gem::supervisor::tbutils::SCurveScan::readFIFO(toolbox::task::WorkLoop* wl)
       //while (bxNum == bxExp) {
       
       //Maybe add another histogramt that is a combined all channels histogram
-      histo->Fill(delVT,(lsData||msData));
+      histo->Fill(delVC,(lsData||msData));
   
       //I think it would be nice to time this...
       for (int chan = 0; chan < 128; ++chan) {
         if (chan < 64)
-  	histos[chan]->Fill(delVT,((lsData>>chan))&0x1);
+  	  histos[chan]->Fill(delVC,((lsData>>chan))&0x1);
         else
-  	histos[chan]->Fill(delVT,((msData>>(chan-64)))&0x1);
+  	  histos[chan]->Fill(delVC,((msData>>(chan-64)))&0x1);
       }
   
+      event++; 
+      cout << " ::readFIFO: event " << event << endl;
+
       vfatDevice_->setDeviceBaseNode("GLIB");
       bufferDepth = vfatDevice_->readReg(vfatDevice_->getDeviceBaseNode(),"LINK1.TRK_FIFO.DEPTH");
-    }
+
+      if ( event >= nTriggers_ ) {
+
+         vfatDevice_->setDeviceBaseNode("OptoHybrid.GEB.VFATS."+confParams_.bag.deviceName.toString());
+         hw_semaphore_.give();
+       
+         std::string imgRoot = "${XDAQ_DOCUMENT_ROOT}/gemdaq/gemsupervisor/html/images/tbutils/tscan/";
+         std::stringstream ss;
+         ss << "chanthresh0.png";
+         std::string imgName = ss.str();
+
+         outputCanvas->cd();
+         outputCanvas->SetFillColor(42);
+         outputCanvas->GetFrame()->SetFillColor(21);
+         outputCanvas->GetFrame()->SetBorderSize(6);
+         outputCanvas->GetFrame()->SetBorderMode(-1);
+      
+         histo->Draw("ep0l");
+         outputCanvas->Update();
+         outputCanvas->SaveAs(TString(imgRoot+imgName));
+       
+         for (int chan = 0; chan < 128; ++chan) {
+
+           imgRoot = "${XDAQ_DOCUMENT_ROOT}/gemdaq/gemsupervisor/html/images/tbutils/tscan/";
+           ss.clear();
+           ss.str(std::string());
+           ss << "chanthresh" << (chan+1) << ".png";
+           imgName = ss.str();
+           outputCanvas->cd();
+           histos[chan]->Draw("ep0l");
+           outputCanvas->Update();
+           outputCanvas->SaveAs(TString(imgRoot+imgName));
+
+         }
+       
+         wl_semaphore_.give();
+         return false;
+      }
+    } // End bufferDepth
   
-    vfatDevice_->setDeviceBaseNode("OptoHybrid.GEB.VFATS."+confParams_.bag.deviceName.toString());
     hw_semaphore_.give();
-  
-    std::string imgRoot = "${XDAQ_DOCUMENT_ROOT}/gemdaq/gemsupervisor/html/images/tbutils/tscan/";
-    std::stringstream ss;
-    ss << "chanthresh0.png";
-    std::string imgName = ss.str();
-    outputCanvas->cd();
-    histo->Draw("ep0l");
-    outputCanvas->Update();
-    outputCanvas->SaveAs(TString(imgRoot+imgName));
-  
-    for (int chan = 0; chan < 128; ++chan) {
-      imgRoot = "${XDAQ_DOCUMENT_ROOT}/gemdaq/gemsupervisor/html/images/tbutils/tscan/";
-      ss.clear();
-      ss.str(std::string());
-      ss << "chanthresh" << (chan+1) << ".png";
-      imgName = ss.str();
-      outputCanvas->cd();
-      histos[chan]->Draw("ep0l");
-      outputCanvas->Update();
-      outputCanvas->SaveAs(TString(imgRoot+imgName));
-    }
-  
     wl_semaphore_.give();
-  
     return false;
   }
 
@@ -677,11 +695,11 @@ void gem::supervisor::tbutils::SCurveScan::webDefault(xgi::Input *in, xgi::Outpu
     }
     else if (is_working_) {
       cgicc::HTTPResponseHeader &head = out->getHTTPResponseHeader();
-      head.addHeader("Refresh","60");
+      head.addHeader("Refresh","5");
     }
     else if (is_running_) {
       cgicc::HTTPResponseHeader &head = out->getHTTPResponseHeader();
-      head.addHeader("Refresh","6");
+      head.addHeader("Refresh","5");
     }
     
     //generate the control buttons and display the ones that can be touched depending on the run mode
@@ -1049,6 +1067,8 @@ throw (toolbox::fsm::exception::Exception) {
   
     is_working_ = true;
   
+    event = 0;
+
     latency_       = scanParams_.bag.latency;
     nTriggers_     = confParams_.bag.nTriggers;
     stepSize_      = scanParams_.bag.stepSize;
@@ -1097,7 +1117,7 @@ throw (toolbox::fsm::exception::Exception) {
     }
     std::stringstream histName, histTitle;
     histName  << "allchannels";
-    histTitle << "Threshold scan for all channels";
+    histTitle << "Vcal scan for all channels";
     int minTh = scanParams_.bag.minThresh;
     int maxTh = scanParams_.bag.maxThresh;
     int nBins = ((maxTh - minTh) + 1)/(scanParams_.bag.stepSize);
@@ -1120,7 +1140,7 @@ throw (toolbox::fsm::exception::Exception) {
     histTitle.str(std::string());
 
     histName  << "channel"<<(hi+1);
-    histTitle << "Threshold scan for channel "<<(hi+1);
+    histTitle << "Vcal scan for channel "<<(hi+1);
     histos[hi] = new TH1F(histName.str().c_str(), histTitle.str().c_str(), nBins, minTh-0.5, maxTh+0.5);
   }
   outputCanvas = new TCanvas("outputCanvas","outputCanvas",600,600);
@@ -1135,6 +1155,8 @@ throw (toolbox::fsm::exception::Exception) {
 
   is_working_ = true;
 
+  event = 0;
+
   latency_       = scanParams_.bag.latency;
   nTriggers_     = confParams_.bag.nTriggers;
   stepSize_      = scanParams_.bag.stepSize;
@@ -1148,24 +1170,53 @@ throw (toolbox::fsm::exception::Exception) {
   tm *gmtm = gmtime(&now);
   char* utcTime = asctime(gmtm);
 
+  // Output File SCurveSca
   std::string tmpFileName = "SCurveScan_";
   tmpFileName.append(utcTime);
   tmpFileName.erase(std::remove(tmpFileName.begin(), tmpFileName.end(), '\n'), tmpFileName.end());
   tmpFileName.append(".dat");
   std::replace(tmpFileName.begin(), tmpFileName.end(), ' ', '_' );
   std::replace(tmpFileName.begin(), tmpFileName.end(), ':', '-');
-
   confParams_.bag.outFileName = tmpFileName;
 
-  LOG4CPLUS_DEBUG(getApplicationLogger(),"Creating file " << confParams_.bag.outFileName.toString());
+  LOG4CPLUS_DEBUG(getApplicationLogger(),"::startAction " 
+      << "Creating file " << confParams_.bag.outFileName.toString());
 
-  //std::fstream scanStream(confParams_.bag.outFileName.c_str(),
-  std::fstream scanStream(tmpFileName.c_str(), std::ios::app | std::ios::binary);
+  std::ofstream scanStream(tmpFileName.c_str(), std::ios::app | std::ios::binary);
+  if (scanStream.is_open()){
+    LOG4CPLUS_INFO(getApplicationLogger(),"::startAction " 
+        << "file " << confParams_.bag.outFileName.toString() << " opened");
+  }
 
-  if (scanStream.is_open()) LOG4CPLUS_INFO(getApplicationLogger(),"file " << confParams_.bag.outFileName.toString() << " opened");
+  // Setup Scan file, information header
+  tmpFileName = "ScanSetup_";
+  tmpFileName.append(utcTime);
+  tmpFileName.erase(std::remove(tmpFileName.begin(), tmpFileName.end(), '\n'), tmpFileName.end());
+  tmpFileName.append(".txt");
+  std::replace(tmpFileName.begin(), tmpFileName.end(), ' ', '_' );
+  std::replace(tmpFileName.begin(), tmpFileName.end(), ':', '-');
+  confParams_.bag.outFileName = tmpFileName;
 
-  //write some global run information header
-  
+  LOG4CPLUS_DEBUG(getApplicationLogger(),"::startAction " 
+		  << "Created ScanSetup file " << tmpFileName );
+
+  std::ofstream scanSetup(tmpFileName.c_str(), std::ios::app );
+  if (scanSetup.is_open()){
+    LOG4CPLUS_INFO(getApplicationLogger(),"::startAction " 
+        << "file " << tmpFileName << " opened and closed");
+    scanSetup << "\n The Time & Date : " << utcTime << endl;
+    scanSetup << " ChipID        0x" << hex << confParams_.bag.deviceChipID << dec << endl;
+    scanSetup << " Latency       " << latency_ << endl;
+    scanSetup << " nTriggers     " << nTriggers_  << endl;
+    scanSetup << " stepSize      " << stepSize_ << endl;
+    scanSetup << " minThresh     " << minThresh_ << endl;
+    scanSetup << " maxThresh     " << maxThresh_ << endl;
+    scanSetup << " stepSizeVcal  " << stepSizeVcal_ << endl;
+    scanSetup << " minVcal       " << minVcal_ << endl;   
+    scanSetup << " maxVcal       " << maxVcal_ << endl;   
+    }
+  scanSetup.close();
+
   //char data[128/8]
   is_running_ = true;
   hw_semaphore_.take();
@@ -1173,18 +1224,16 @@ throw (toolbox::fsm::exception::Exception) {
   //set clock source
   /*
   vfatDevice_->setDeviceBaseNode("OptoHybrid.CLOCKING");
-  vfatDevice_->writeReg(vfatDevice_->getDeviceBaseNode(),"VFAT.SOURCE",  0x1); // 0x1 external
-  vfatDevice_->writeReg(vfatDevice_->getDeviceBaseNode(),"CDCE.SOURCE",  0x0);
-  //vfatDevice_->writeReg(vfatDevice_->getDeviceBaseNode(),"VFAT.FALLBACK",0x1);
-  //vfatDevice_->writeReg(vfatDevice_->getDeviceBaseNode(),"CDCE.FALLBACK",0x1);
+  vfatDevice_->writeReg(vfatDevice_->getDeviceBaseNode(),"VFAT.SOURCE",  0x1);
+  vfatDevice_->writeReg(vfatDevice_->getDeviceBaseNode(),"CDCE.SOURCE",  0x1);
+  vfatDevice_->writeReg(vfatDevice_->getDeviceBaseNode(),"VFAT.FALLBACK",0x1);
+  vfatDevice_->writeReg(vfatDevice_->getDeviceBaseNode(),"CDCE.FALLBACK",0x1);
   */
 
   //set trigger source
-  /*
   vfatDevice_->setDeviceBaseNode("OptoHybrid.TRIGGER");
-  vfatDevice_->writeReg(vfatDevice_->getDeviceBaseNode(),"SOURCE",   0x2);
+  vfatDevice_->writeReg(vfatDevice_->getDeviceBaseNode(),"SOURCE",   0x1);
   vfatDevice_->writeReg(vfatDevice_->getDeviceBaseNode(),"TDC_SBits",(unsigned)confParams_.bag.deviceNum);
-  */
 
   //send resync
   vfatDevice_->setDeviceBaseNode("OptoHybrid.FAST_COM");
@@ -1232,24 +1281,23 @@ throw (toolbox::fsm::exception::Exception) {
   }
   std::stringstream histName, histTitle;
   histName  << "allchannels";
-  histTitle << "Threshold scan for all channels";
-  int minTh = scanParams_.bag.minThresh;
-  int maxTh = scanParams_.bag.maxThresh;
-  int nBins = ((maxTh - minTh) + 1)/(scanParams_.bag.stepSize);
+  histTitle << "Vcal scan for all channels";
+  int minVc = scanParams_.bag.minVcal;
+  int maxVc = scanParams_.bag.maxVcal;
+  int nBins = ((maxVc - minVc) + 1)/(scanParams_.bag.stepSizeVcal);
 
   //write Applicatie  header
   /*
-  ah.minTh = minTh;
-  ah.maxTh = maxTh;
-  ah.stepSize = scanParams_.bag.stepSize;
+  ah.minVc = minVc;
+  ah.maxVc = maxVc;
+  ah.stepSizeVcal = scanParams_.bag.stepSizeVcal;
   gem::supervisor::tbutils::keepSCAppHeader(tmpFileName, ah);
   */
 
-  histo = new TH1F(histName.str().c_str(), histTitle.str().c_str(), nBins, minTh-0.5, maxTh+0.5);
+  histo = new TH1F(histName.str().c_str(), histTitle.str().c_str(), nBins, minVc-0.5, maxVc+0.5);
   
   for (unsigned int hi = 0; hi < 128; ++hi) {
     if (histos[hi]) {
-      //histos[hi]->Delete();
       delete histos[hi];
       histos[hi] = 0;
     }
@@ -1260,8 +1308,8 @@ throw (toolbox::fsm::exception::Exception) {
     histTitle.str(std::string());
 
     histName  << "channel"<<(hi+1);
-    histTitle << "Threshold scan for channel "<<(hi+1);
-    histos[hi] = new TH1F(histName.str().c_str(), histTitle.str().c_str(), nBins, minTh-0.5, maxTh+0.5);
+    histTitle << "Vcal scan for channel "<<(hi+1);
+    histos[hi] = new TH1F(histName.str().c_str(), histTitle.str().c_str(), nBins, minVc-0.5, maxVc+0.5);
   }
 
   //start scan routine
@@ -1291,6 +1339,8 @@ throw (toolbox::fsm::exception::Exception) {
     
     scanParams_.bag.deviceVC1    = 0x0;
     scanParams_.bag.deviceVC2    = 255;
+
+    event = 0;
 
     is_working_     = false;
 }
