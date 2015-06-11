@@ -470,6 +470,7 @@ bool gem::supervisor::tbutils::SCurveScan::readFIFO(toolbox::task::WorkLoop* wl)
      /*
       * dump VFAT data */
       gem::readout::printVFATdataBits(ievent, vfat);
+      gem::readout::show8bits(sBit); cout << " sBit " << endl; 
   
      /*
       * GEM data filling
@@ -508,8 +509,6 @@ bool gem::supervisor::tbutils::SCurveScan::readFIFO(toolbox::task::WorkLoop* wl)
          outputCanvas->cd();
          outputCanvas->SetFillColor(42);
          outputCanvas->GetFrame()->SetFillColor(21);
-         outputCanvas->GetFrame()->SetBorderSize(6);
-         outputCanvas->GetFrame()->SetBorderMode(-1);
       
          histo->Draw("ep0l");
          outputCanvas->Update();
@@ -1205,12 +1204,12 @@ throw (toolbox::fsm::exception::Exception) {
     LOG4CPLUS_INFO(getApplicationLogger(),"::startAction " 
         << "file " << tmpFileName << " opened and closed");
     scanSetup << "\n The Time & Date : " << utcTime << endl;
+    scanSetup << " SOURCE:       0x1, External " << endl;
     scanSetup << " ChipID        0x" << hex << confParams_.bag.deviceChipID << dec << endl;
     scanSetup << " Latency       " << latency_ << endl;
     scanSetup << " nTriggers     " << nTriggers_  << endl;
     scanSetup << " stepSize      " << stepSize_ << endl;
-    scanSetup << " minThresh     " << minThresh_ << endl;
-    scanSetup << " maxThresh     " << maxThresh_ << endl;
+    scanSetup << " Threshold     " << std::abs(minThresh_) << endl;
     scanSetup << " stepSizeVcal  " << stepSizeVcal_ << endl;
     scanSetup << " minVcal       " << minVcal_ << endl;   
     scanSetup << " maxVcal       " << maxVcal_ << endl;   

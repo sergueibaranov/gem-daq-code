@@ -150,6 +150,14 @@ namespace gem {
      	//printf("\n");
       }
 
+      void show8bits(uint8_t x) {
+        int i;
+        const unsigned long unit = 1;
+        for(i=(sizeof(uint8_t)*8)-1; i>=0; i--)
+          (x & ((unit)<<i))?putchar('1'):putchar('0');
+     	//printf("\n");
+      }
+
       void show16bits(uint16_t x) {
         int i;
         const unsigned long unit = 1;

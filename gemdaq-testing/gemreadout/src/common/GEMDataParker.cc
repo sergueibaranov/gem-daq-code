@@ -52,7 +52,7 @@ int gem::readout::GEMDataParker::getGLIBData(gem::readout::GEMData& gem, gem::re
 {
     // Book VFAT variables
     bool     isFirst = true;
-    uint8_t  SBit, flags;
+    uint8_t  sBit, flags;
     uint16_t bcn, evn, chipid, crc;
     uint32_t bxNum, bxExp, TrigReg, bxNumTr;
     uint64_t msData, lsData;
@@ -90,7 +90,7 @@ int gem::readout::GEMDataParker::getGLIBData(gem::readout::GEMData& gem, gem::re
       vfatDevice_->setDeviceBaseNode("GLIB");
       TrigReg = vfatDevice_->readReg(vfatDevice_->getDeviceBaseNode(),"TRG_DATA.DATA");
       bxNumTr = TrigReg >> 6;
-      SBit = TrigReg & 0x0000003F;
+      sBit = TrigReg & 0x0000003F;
 
       uint16_t b1010, b1100, b1110;
       b1010 = ((data.at(5) & 0xF0000000)>>28);
@@ -126,7 +126,7 @@ int gem::readout::GEMDataParker::getGLIBData(gem::readout::GEMData& gem, gem::re
       }
 
       // bxExp:28
-      // bxNum  = (bxNum << 8 ) | (SBit); // bxNum:8  | SBit:8
+      // bxNum  = (bxNum << 8 ) | (sBit); // bxNum:8  | sBit:8
 
       bcn    = (0x0fff0000 & data.at(5)) >> 16;
       evn    = (0x00000ff0 & data.at(5)) >> 4;
@@ -150,8 +150,9 @@ int gem::readout::GEMDataParker::getGLIBData(gem::readout::GEMData& gem, gem::re
       vfat.crc    = crc;                                    // crc:16
 
      /*
-      * dump VFAT data
+      * dump VFAT data 
       gem::readout::printVFATdataBits(counter_, vfat);
+      gem::readout::show8bits(sBit); cout << " sBit " << endl; 
       */
 
       vfatDevice_->setDeviceBaseNode("GLIB");
