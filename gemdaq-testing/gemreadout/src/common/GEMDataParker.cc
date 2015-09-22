@@ -422,7 +422,7 @@ void gem::readout::GEMDataParker::GEMfillHeaders(
   BXID     =  (0x00000000fff00000 & gem.header1) >> 20;
   DataLgth =  (0x00000000000fffff & gem.header1);
 
-  INFO(" ::GEMfillHeaders event " << event << " LV1ID " << LV1ID );
+  DEBUG(" ::GEMfillHeaders event " << event << " LV1ID " << LV1ID );
 
   // GEM Event Headers [2]
   uint64_t User        = BOOST_BINARY( 1 );    // :32
