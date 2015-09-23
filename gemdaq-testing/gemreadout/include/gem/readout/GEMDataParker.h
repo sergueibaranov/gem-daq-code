@@ -45,7 +45,8 @@ namespace gem {
       void GEMfillTrailers ( gem::readout::GEMDataAMCformat::GEMData& gem,
                              gem::readout::GEMDataAMCformat::GEBData& geb
                            );
-      void writeGEMevent   ( gem::readout::GEMDataAMCformat::GEMData& gem,
+      void writeGEMevent   ( std::string outFile,
+                             gem::readout::GEMDataAMCformat::GEMData& gem,
                              gem::readout::GEMDataAMCformat::GEBData& geb,
                              gem::readout::GEMDataAMCformat::VFATData& vfat
                            );
