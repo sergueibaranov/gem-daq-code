@@ -279,15 +279,15 @@ int gem::readout::GEMDataParker::getGLIBData(
       for (std::map<uint32_t, uint32_t>::iterator it=numBX.begin(); it!=numBX.end(); ++it){
          event_++;
          IlocalEvent++;
-         DEBUG(" ABC::getGLIBData END BX 0x" << std::hex << it->first << std::dec << " numBX " <<  it->second << " event_ " << event_);
+         DEBUG(" ::getGLIBData END BX 0x" << std::hex << it->first << std::dec << " numBX " <<  it->second << " event_ " << event_);
 
          int nChip = 0;
          for (std::vector<GEMDataAMCformat::VFATData>::iterator iVFAT=vfats.begin(); iVFAT != vfats.end(); ++iVFAT) {
 
            uint32_t localEvent = (*iVFAT).BXfrOH;
-           DEBUG(" vfats evn 0x" << it->first << " EC " << localEvent );
+           DEBUG(" ::getGLIBData vfats BX 0x" << it->first << " EC " << localEvent );
 
-           if ( it->first == localEvent ) {
+           if ( /* BX */ it->first == localEvent ) {
              nChip++;
              vfat.BC     = (*iVFAT).BC;
              vfat.EC     = (*iVFAT).EC;
@@ -309,7 +309,7 @@ int gem::readout::GEMDataParker::getGLIBData(
              DEBUG(" ::getGLIBData  writeGEMevent slot " << islot);
 
              if ( gem::readout::GEMDataParker::VFATfillData( islot, geb) ){
-                 if ( it->second == nChip ){
+                 if ( /* BX */ it->second == nChip ){
 
                     /*    
                      * GEM data filling
@@ -319,7 +319,7 @@ int gem::readout::GEMDataParker::getGLIBData(
                     /*
                      * GEM headers and trealers filling
                      */
-                     gem::readout::GEMDataParker::GEMfillHeaders(event_, gem, geb);
+                     gem::readout::GEMDataParker::GEMfillHeaders(event_, /* BX */ it->second, gem, geb);
                      gem::readout::GEMDataParker::GEMfillTrailers(gem, geb);
         
                     /*
@@ -399,7 +399,8 @@ bool gem::readout::GEMDataParker::VFATfillData(
 
 
 void gem::readout::GEMDataParker::GEMfillHeaders(
-                                                 int const& event,
+                                                 uint32_t const& event,
+                                                 uint32_t const& BX,
                                                  AMCGEMData& gem,
                                                  AMCGEBData& geb
 ){
@@ -411,18 +412,18 @@ void gem::readout::GEMDataParker::GEMfillHeaders(
   uint64_t AmcNo       = BOOST_BINARY( 1 );            // :4 
   uint64_t ZeroFlag    = BOOST_BINARY( 0000 );         // :4
   uint64_t LV1ID       = (0x0000000000ffffff & event); // :24
-  uint64_t BXID        = BOOST_BINARY( 1 );            // :12
-  uint64_t DataLgth    = BOOST_BINARY( 1 );            // :20
+  uint64_t BXID        = (0x00000000ffffffff & BX);    // :12  ! why we have only 12 Bits for BX !
+  //uint64_t DataLgth    = BOOST_BINARY( 1 );          // :20
 
-  gem.header1 = (AmcNo <<60)|(ZeroFlag << 56)|(LV1ID <<32)|(BXID << 20)|(DataLgth);
+  gem.header1 = (AmcNo <<60)|(ZeroFlag << 56)|(LV1ID << 32)|(BXID); // (BXID << 20)|(DataLgth);
 
   AmcNo    =  (0xf000000000000000 & gem.header1) >> 60;
   ZeroFlag =  (0x0f00000000000000 & gem.header1) >> 56; 
   LV1ID    =  (0x00ffffff00000000 & gem.header1) >> 32; 
-  BXID     =  (0x00000000fff00000 & gem.header1) >> 20;
-  DataLgth =  (0x00000000000fffff & gem.header1);
+  BXID     =  (0x00000000ffffffff & gem.header1); // >> 20 
+  //DataLgth =  (0x00000000000fffff & gem.header1);
 
-  DEBUG(" ::GEMfillHeaders event " << event << " LV1ID " << LV1ID );
+  DEBUG(" ::GEMfillHeaders event " << event << " LV1ID " << LV1ID << " BXID " << BXID);
 
   // GEM Event Headers [2]
   uint64_t User        = BOOST_BINARY( 1 );    // :32

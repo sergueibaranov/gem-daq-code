@@ -34,7 +34,8 @@ namespace gem {
       void dumpDataToDisk  ( uint8_t const& link );
       int  getGLIBData     ( uint8_t const& link );
 
-      void GEMfillHeaders  ( int const& BC,
+      void GEMfillHeaders  ( uint32_t const& BC,
+                             uint32_t const& BX,
                              gem::readout::GEMDataAMCformat::GEMData& gem,
                              gem::readout::GEMDataAMCformat::GEBData& geb 
                            );
