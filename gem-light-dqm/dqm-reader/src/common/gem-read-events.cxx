@@ -7,6 +7,9 @@
 #include <fstream>
 #include <string>
 
+#include <boost/lexical_cast.hpp>
+#include <boost/format.hpp>
+
 #include <cstring>
 #include <sstream>
 #include <algorithm> 
@@ -138,7 +141,16 @@ int main(int argc, char** argv)
 #else
 TFile* thldread(Int_t get=0)
 #endif
-{ cout<<"---> Main()"<<endl;
+{ cout<<"---> Main() argc " << argc << " argv " << *argv << endl;
+
+  Int_t kUPDATE = 1000;
+  string sUPDATE = "";
+
+  if (argc == 2 ){
+    sUPDATE = *(argv+1);
+    kUPDATE = boost::lexical_cast<Int_t>(sUPDATE);
+  } 
+  cout << " kUPDATE is " << kUPDATE << endl;
 
 #ifndef __CINT__
   TApplication App("App", &argc, argv);
@@ -279,7 +291,6 @@ TFile* thldread(Int_t get=0)
 
   const Int_t ieventPrint = 0;
   const Int_t ieventMax   = 900000;
-  const Int_t kUPDATE     = 1000;
   bool  OKpri = false;
 
   gem::readout::GEMslotContents::getSlotCfg();
