@@ -353,7 +353,6 @@ TFile* thldread(Int_t get=0)
     *  GEB PayLoad Data
     */
 
-    cout << " sumVFAT " << sumVFAT << endl;
     int ifake = 0;
     for(int ivfat=1; ivfat <= sumVFAT; ivfat++){
 
@@ -387,8 +386,9 @@ TFile* thldread(Int_t get=0)
       } 
 
       if ( (b1010 != 0xa) || (b1100 != 0xc) || (b1110 != 0xe) ){
-        cout << "VFAT headers do not match expectation" << endl;
+        cout << "VFAT headers do not match expectation &  GEBslotIndex " << islotChipID << endl;
         gem::readout::GEMDataAMCformat::printVFATdataBits(ievent, vfat);
+
         ifake++;
       }//end if 1010,1100,1110
 
