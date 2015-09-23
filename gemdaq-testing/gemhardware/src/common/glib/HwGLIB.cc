@@ -511,12 +511,15 @@ uint32_t gem::hw::glib::HwGLIB::getFIFOOccupancy(uint8_t const& link) {
   std::stringstream regName;
   regName << "GLIB_LINKS.LINK" << (int)link << ".TRK_FIFO";
   fifocc = readReg(getDeviceBaseNode(),regName.str()+".DEPTH");
-  INFO(toolbox::toString("getFIFOOccupancy(%d) %s.%s%s:: %d",
+  // SB, reduce printout for development for multi kHz rate triggering
+  if ( fifocc < 5 || fifocc > 4090 ) {
+    DEBUG(toolbox::toString("getFIFOOccupancy(%d) %s.%s%s:: %d",
                          link,
                          getDeviceBaseNode().c_str(),
                          regName.str().c_str(),
                          ".DEPTH",
                          fifocc));
+  }
   return fifocc;
 }
 
