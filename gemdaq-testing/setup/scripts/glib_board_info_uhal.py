@@ -3,8 +3,7 @@
 import sys, re
 import time, datetime, os
 
-sys.path.append('/home/mdalchen/gemdev/gem-daq-code/gemdaq-testing/setup/scripts/src')
-#sys.path.append('/opt/gemdaq/firmware/testing/src')
+sys.path.append('/opt/gemdaq/firmware/testing/src')
 
 import uhal
 from registers_uhal import *
