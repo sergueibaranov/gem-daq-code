@@ -346,6 +346,7 @@ int gem::readout::GEMDataParker::getGLIBData(
        INFO(" CDE::getGLIBData  vfats.size " << int(vfats.size()) << " IlocalEvent " << IlocalEvent << " event " << event_ );
 
        vfats.clear();
+       erros.clear();
        IlocalEvent = 0;
 
        // local event cleaning 
