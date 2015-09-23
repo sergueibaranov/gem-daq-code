@@ -331,7 +331,7 @@ int gem::readout::GEMDataParker::getGLIBData(
                      * GEM Event Writing
                      */
                      DEBUG(" ::getGLIBData writing...  geb.vfats.size " << int(geb.vfats.size()) );
-                     if(int(geb.vfats.size()) != 0) gem::readout::GEMDataParker::writeGEMevent(outFileName_, true, gem, geb, vfat);
+                     if(int(geb.vfats.size()) != 0) gem::readout::GEMDataParker::writeGEMevent(outFileName_, false, gem, geb, vfat);
         
                      geb.vfats.clear();
         
@@ -378,7 +378,7 @@ int gem::readout::GEMDataParker::getGLIBData(
                      * GEM ERRORS Event Writing
                      */
                      INFO(" ::getGLIBData writing...  geb.erros.size " << int(geb.vfats.size()) );
-                     if(int(geb.vfats.size()) != 0) gem::readout::GEMDataParker::writeGEMevent(errFileName_, false, gem, geb, vfat);
+                     if(int(geb.vfats.size()) != 0) gem::readout::GEMDataParker::writeGEMevent(errFileName_, true, gem, geb, vfat);
         
                      geb.vfats.clear();
         
@@ -631,9 +631,10 @@ void gem::readout::GEMDataParker::writeGEMevent(
     } else {
       GEMDataAMCformat::writeVFATdataBinary (outFile, nChip, vfat);
     };
-    //GEMDataAMCformat::printVFATdataBits(nChip, vfat);
-    //INFO(" writeGEMevent slot " << gem::readout::GEMslotContents::GEBslotIndex( (uint32_t)vfat.ChipID ) );
-
+    if(OKprint){
+      GEMDataAMCformat::printVFATdataBits(nChip, vfat);
+      INFO(" writeGEMevent slot " << gem::readout::GEMslotContents::GEBslotIndex( (uint32_t)vfat.ChipID ) );
+    }
   }//end of GEB PayLoad Data
 
  /*
