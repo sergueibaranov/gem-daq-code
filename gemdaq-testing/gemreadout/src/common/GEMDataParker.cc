@@ -18,6 +18,7 @@ typedef gem::readout::GEMDataAMCformat::GEMData  AMCGEMData;
 typedef gem::readout::GEMDataAMCformat::GEBData  AMCGEBData;
 typedef gem::readout::GEMDataAMCformat::VFATData AMCVFATData;
 std::vector<AMCVFATData> vfats;
+std::vector<AMCVFATData> erros;
 
 uint16_t gem::readout::GEMslotContents::slot[24] = {
   0xfff,0xfff,0xfff,0xfff,0xfff,0xfff,0xfff,0xfff,
@@ -183,12 +184,6 @@ int gem::readout::GEMDataParker::getGLIBData(
     vfatcrc = (0x0000ffff & data.at(0));
 
     islot = gem::readout::GEMslotContents::GEBslotIndex( (uint32_t)chipid );
-    if (islot<0 && islot > 23) {
-      // islot out of [0-23]
-      islotNegativeCount++;
-      DEBUG(" ::getGLIBData warning !!! islot is negative " << islot << " islotNegativeCount " << islotNegativeCount );
-      continue;
-    }
 
     if ( BX == BXexp.find(BX)->second ) { 
       isFirst.erase(BX);
@@ -265,11 +260,18 @@ int gem::readout::GEMDataParker::getGLIBData(
     INFO(" ABC::getGLIBData slot " << islot );
    */
 
-   /*
-    * VFATs Pay Load
-    */
-    vfats.push_back(vfat);
-  
+    if (islot<0 && islot > 23) {
+      // islot out of [0-23]
+      islotNegativeCount++;
+      INFO(" ::getGLIBData warning !!! islot is negative " << islot << " islotNegativeCount " << islotNegativeCount );
+      erros.push_back(vfat);
+    } else {
+     /*
+      * VFATs Pay Load
+      */
+      vfats.push_back(vfat);
+    }
+
     if ( bufferCount == 0 ){
       
       DEBUG(" CDE::getGLIBData vfats.size " << int(vfats.size()) << " bufferCount " << bufferCount << " event " << event_);
@@ -279,7 +281,8 @@ int gem::readout::GEMDataParker::getGLIBData(
       for (std::map<uint32_t, uint32_t>::iterator it=numBX.begin(); it!=numBX.end(); ++it){
          event_++;
          IlocalEvent++;
-         DEBUG(" ::getGLIBData END BX 0x" << std::hex << it->first << std::dec << " numBX " <<  it->second << " event_ " << event_);
+         DEBUG(" ::getGLIBData END BX 0x" << std::hex << /* BX */ it->first << std::dec << " numBX " <<  it->second << 
+               " event_ " << event_);
 
          int nChip = 0;
          for (std::vector<GEMDataAMCformat::VFATData>::iterator iVFAT=vfats.begin(); iVFAT != vfats.end(); ++iVFAT) {
@@ -375,6 +378,21 @@ bool gem::readout::GEMDataParker::VFATfillData(
   
    if (islot == -1) {
      INFO(" ::VFATfillData warning : wrong slot Index !!!" );
+
+     // Chamber Header, Zero Suppression flags, Chamber ID
+     ZSFlag           = 0x0;                    // :24
+     uint64_t ChamID  = 0xdea;                  // :12
+     uint64_t sumVFAT = int(geb.vfats.size());  // :28
+    
+     geb.header  = (ZSFlag << 40)|(ChamID << 28)|(sumVFAT);
+    
+     ZSFlag =  (0xffffff0000000000 & geb.header) >> 40; 
+     ChamID =  (0x000000fff0000000 & geb.header) >> 28; 
+     sumVFAT=  (0x000000000fffffff & geb.header);    
+
+     DEBUG(" ::VFATfillData ChamID 0x" << ChamID << std::dec << " islot " << islot << " sumVFAT " << sumVFAT);
+     //GEMDataAMCformat::show24bits(ZSFlag); 
+
      return (false);
 
    } else {
