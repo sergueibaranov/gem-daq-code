@@ -334,9 +334,6 @@ int gem::readout::GEMDataParker::getGLIBData(
                      geb.vfats.clear();
         
     	         }//end of writing event
-
-             } else {
-               DEBUG(" ::getGLIBData warning slot wrong !!!" << islot);
              }// if slot correct
 
   	   }// if localEvent
