@@ -267,7 +267,7 @@ int gem::readout::GEMDataParker::getGLIBData(
      /*
       * VFATs Pay Load
       */
-      vfats.push_back(vfat);
+      if ( int(vfats.size()) < 90000 ) vfats.push_back(vfat);
       
       DEBUG(" ABV::getGLIBData bufferDepth " << bufferDepth << " event_ " << event_ <<
 	   " vfats.size " << int(vfats.size()) << std::hex << " BX 0x" << BX << std::dec );
@@ -331,7 +331,7 @@ int gem::readout::GEMDataParker::getGLIBData(
                      * GEM Event Writing
                      */
                      DEBUG(" ::getGLIBData writing...  geb.vfats.size " << int(geb.vfats.size()) );
-                     if(int(geb.vfats.size()) != 0) gem::readout::GEMDataParker::writeGEMevent(outFileName_, gem, geb, vfat);
+                     if(int(geb.vfats.size()) != 0) gem::readout::GEMDataParker::writeGEMevent(outFileName_, true, gem, geb, vfat);
         
                      geb.vfats.clear();
         
@@ -378,7 +378,7 @@ int gem::readout::GEMDataParker::getGLIBData(
                      * GEM ERRORS Event Writing
                      */
                      INFO(" ::getGLIBData writing...  geb.erros.size " << int(geb.vfats.size()) );
-                     if(int(geb.vfats.size()) != 0) gem::readout::GEMDataParker::writeGEMevent(errFileName_, gem, geb, vfat);
+                     if(int(geb.vfats.size()) != 0) gem::readout::GEMDataParker::writeGEMevent(errFileName_, false, gem, geb, vfat);
         
                      geb.vfats.clear();
         
@@ -570,12 +570,15 @@ void gem::readout::GEMDataParker::GEMfillTrailers(
 
 void gem::readout::GEMDataParker::writeGEMevent(
                                                 std::string  outFile,
+                                                bool OKprint,
                                                 AMCGEMData&  gem,
                                                 AMCGEBData&  geb,
                                                 AMCVFATData& vfat
 ){
-  INFO(" ::writeGEMevent vfat_ " << vfat_ << " event " << event_ << " sumVFAT " << (0x000000000fffffff & geb.header) <<
-       " geb.vfats.size " << int(geb.vfats.size()) );
+  if(OKprint){
+    INFO(" ::writeGEMevent vfat_ " << vfat_ << " event " << event_ << " sumVFAT " << (0x000000000fffffff & geb.header) <<
+         " geb.vfats.size " << int(geb.vfats.size()) );
+  }
 
   /*
     int nGEB=0;
@@ -656,6 +659,8 @@ void gem::readout::GEMDataParker::writeGEMevent(
   } 
 
   uint64_t ZSFlag =  (0xffffff0000000000 & geb.header) >> 40;
-  GEMDataAMCformat::show24bits(ZSFlag); INFO(" writeGEMevent:: end of event " << event_ << "\n");
+  if(OKprint){
+    GEMDataAMCformat::show24bits(ZSFlag); INFO(" writeGEMevent:: end of event " << event_ << "\n");
+  }
   /* } // end of GEB */
 }
