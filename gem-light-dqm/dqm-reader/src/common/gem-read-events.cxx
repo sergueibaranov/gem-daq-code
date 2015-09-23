@@ -353,6 +353,7 @@ TFile* thldread(Int_t get=0)
     *  GEB PayLoad Data
     */
 
+    cout << " sumVFAT " << sumVFAT << endl;
     int ifake = 0;
     for(int ivfat=1; ivfat <= sumVFAT; ivfat++){
 
