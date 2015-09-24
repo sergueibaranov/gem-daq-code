@@ -55,7 +55,6 @@ gem::readout::GEMDataParker::GEMDataParker(
                                           :
                                           gemLogger_(log4cplus::Logger::getInstance(LOG4CPLUS_TEXT("gem:readout:GEMDataParker"))
 ){
-  //gemLogger_   = log4cplus::Logger::getInstance("gem:readout:GEMDataParker");
   glibDevice_  = &glibDevice;
   outFileName_ = outFileName;
   errFileName_ = errFileName;
