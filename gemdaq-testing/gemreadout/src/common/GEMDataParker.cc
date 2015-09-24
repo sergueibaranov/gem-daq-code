@@ -262,6 +262,10 @@ int gem::readout::GEMDataParker::getGLIBData(
       if ( int(erros.size()) < 4095 ) erros.push_back(vfat);
       INFO(" ::getGLIBData warning !!! islot is negative " << islot << " islotNegativeCount " << islotNegativeCount << 
            " erros.size " << int(erros.size()) );
+   /*
+    * dump VFAT data */
+    GEMDataAMCformat::printVFATdataBits(vfat_, vfat);
+    INFO(" ABC::getGLIBData slot " << islot );
 
     } else {
      /*
