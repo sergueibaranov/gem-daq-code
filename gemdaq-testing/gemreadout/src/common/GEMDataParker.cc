@@ -30,7 +30,7 @@ uint16_t gem::readout::GEMslotContents::slot[24] = {
 };
 bool gem::readout::GEMslotContents::isFileRead = false;
 
-uint32_t kUPDATE = 5000, kUPDATE7 = 7;
+uint32_t kUPDATE = 50000, kUPDATE7 = 7;
 int event_ = 0;
 int rvent_ = 0;
 
@@ -122,12 +122,12 @@ uint32_t* gem::readout::GEMDataParker::getGLIBData(
 {
   uint32_t *point = &Counter[0]; 
   TStopwatch timer;
-  uint8_t const gtx = 0;
-  uint32_t dataqueSize;
-  Float_t RT;
+  uint32_t dataqueSize, ivnt;
+  //Float_t RT;
 
-  timer.Start();
+  ivnt=0;
   while ( glibDevice_->hasTrackingData(link) ) {
+    ivnt++;
 
     std::vector<uint32_t> data = glibDevice_->getTrackingData(link, glibDevice_->getFIFOOccupancy(link));
 
@@ -137,8 +137,22 @@ uint32_t* gem::readout::GEMDataParker::getGLIBData(
     */
 
     for (auto iword = data.begin(); iword != data.end(); ++iword){
-      DEBUG(" found word 0x" << std::setw(8) << std::setfill('0') <<std::hex << *iword << std::dec);
+      //DEBUG(" found word 0x" << std::setw(8) << std::setfill('0') <<std::hex << *iword << std::dec);
       dataque.push(*iword);
+
+      /*
+      dataqueSize = dataque.size();
+
+      timer.Start();
+      while (!dataque.empty()){
+        uint32_t datafront = dataque.front();
+        dataque.pop();
+      }
+      if (ivnt%kUPDATE == 0 &&  ivnt != 0) {
+        timer.Stop(); RT = (Float_t)timer.RealTime();
+        INFO(" ::getGLIBData  dataqueSize " << dataqueSize << " GEMEventMaker RT " << RT );
+      }
+      */
     }
 
     /*
@@ -147,9 +161,7 @@ uint32_t* gem::readout::GEMDataParker::getGLIBData(
       " event " << Counter[1] );
     */
 
-    dataqueSize = dataque.size();
-
-    while (1>0 && !dataque.empty()){
+    while (!dataque.empty()){
       uint32_t* pDQ = gem::readout::GEMDataParker::GEMEventMaker(Counter);
       Counter[0] = *(pDQ+0); // VFAT Blocks counter
       Counter[1] = *(pDQ+1); // Events counter
@@ -160,15 +172,18 @@ uint32_t* gem::readout::GEMDataParker::getGLIBData(
       DEBUG(" ::getGLIBData VFATs [0] " << Counter[0] << " VFATs per event [2] " << Counter[2] << 
   	  " numES [3] " << Counter[3] << " errES [4] " << Counter[4] << " event [1] " << Counter[1] << " event_ " << event_ );
     }
+    /*
     if (event_%kUPDATE == 0 &&  event_ != 0) {
       timer.Stop(); RT = (Float_t)timer.RealTime();
       INFO(" ::getGLIBData  dataqueSize " << dataqueSize << " GEMEventMaker RT " << RT );
     }
-
+    */
   }//end while
 
+  /*
   timer.Stop(); RT = (Float_t)timer.RealTime();
   INFO(" ::getGLIBData dataque.Size "<< dataqueSize << " The time for collection and selection data " << RT);
+  */
 
   return point;
 }
@@ -176,7 +191,8 @@ uint32_t* gem::readout::GEMDataParker::getGLIBData(
 
 uint32_t* gem::readout::GEMDataParker::selectData(
                                                   uint32_t Counter[5]
-						  ){
+						  )
+{
   uint32_t *point = &Counter[0]; 
 
   uint32_t* pDQ = gem::readout::GEMDataParker::GEMEventMaker(Counter);
@@ -193,7 +209,8 @@ uint32_t* gem::readout::GEMDataParker::selectData(
 
 uint32_t* gem::readout::GEMDataParker::GEMEventMaker(
 						     uint32_t Counter[5]
-						     ){
+						     )
+{
   uint32_t *point = &Counter[0];
 
   int MaxVFATS = 32;
@@ -222,7 +239,6 @@ uint32_t* gem::readout::GEMDataParker::GEMEventMaker(
 
   uint32_t datafront = 0;
   for (int iQue=0; iQue<7; iQue++ ){
-    //while (!dataque.empty()){
     datafront = dataque.front();
     DEBUG(" ::GEMEventMaker iQue " << iQue << " " << std::hex << datafront << std::dec );
 
