@@ -623,7 +623,7 @@ bool gem::supervisor::GEMGLIBSupervisorWeb::runAction(toolbox::task::WorkLoop *w
     //wl_->submit(select_signature_);
   }//end bufferDepth
 
-  return false;
+  return true;
 }
 
 bool gem::supervisor::GEMGLIBSupervisorWeb::readAction(toolbox::task::WorkLoop *wl)

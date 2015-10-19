@@ -123,27 +123,30 @@ uint32_t* gem::readout::GEMDataParker::getGLIBData(
   uint32_t *point = &Counter[0]; 
   TStopwatch timer;
   uint32_t dataqueSize, ivnt;
-  //Float_t RT;
+  Float_t RT;
 
-  ivnt=0;
+  kUPDATE = 10000;
+  ivnt = 0;
+  timer.Start();
+
   while ( glibDevice_->hasTrackingData(link) ) {
     ivnt++;
 
     std::vector<uint32_t> data = glibDevice_->getTrackingData(link, glibDevice_->getFIFOOccupancy(link));
 
     /*
-    timer.Continue(); RT = (Float_t)timer.RealTime();
-    INFO(" ::getGLIBData The time for one call of getTrackingData(link) " << RT);
+    timer.Stop(); RT = (Float_t)timer.RealTime();
+    if (ivnt%kUPDATE == 0 &&  ivnt != 0) {
+      INFO(" ::getGLIBData The time for one call of getTrackingData(link): ev " << ivnt << " RT " << RT);
+    }
     */
 
     for (auto iword = data.begin(); iword != data.end(); ++iword){
       //DEBUG(" found word 0x" << std::setw(8) << std::setfill('0') <<std::hex << *iword << std::dec);
       dataque.push(*iword);
-
-      /*
       dataqueSize = dataque.size();
 
-      timer.Start();
+      /*
       while (!dataque.empty()){
         uint32_t datafront = dataque.front();
         dataque.pop();
@@ -180,10 +183,8 @@ uint32_t* gem::readout::GEMDataParker::getGLIBData(
     */
   }//end while
 
-  /*
   timer.Stop(); RT = (Float_t)timer.RealTime();
   INFO(" ::getGLIBData dataque.Size "<< dataqueSize << " The time for collection and selection data " << RT);
-  */
 
   return point;
 }
