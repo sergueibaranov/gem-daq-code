@@ -166,7 +166,7 @@ TFile* thldread(Int_t get=0)
   std::ifstream inpf(file.c_str(), std::ios::in|std::ios::binary);
   char c = inpf.get();
   inpf.close();
-  if ( c != 1 ) InpType = "Hex";
+  if ( c != 1 ) InpType = "Binary";
   cout << " Input File has type " << c << " " << "  " << InpType << endl;
 
   inpf.open(file.c_str(), std::ios::in|std::ios::binary);
