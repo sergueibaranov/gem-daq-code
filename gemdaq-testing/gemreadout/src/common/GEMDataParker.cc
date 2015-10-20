@@ -172,8 +172,7 @@ uint32_t* gem::readout::GEMDataParker::getGLIBData(uint8_t const& link, uint32_t
 {
   uint32_t *point = &Counter[0]; 
   TStopwatch timer;
-  uint32_t dataqueSize, ivnt;
-  Float_t RT;
+  uint32_t ivnt;
 
   kUPDATE = 10000;
   ivnt = 0;
@@ -776,7 +775,7 @@ void gem::readout::GEMDataParker::GEMfillHeaders(uint32_t const& event, uint32_t
   AmcNo    =  (0xf000000000000000 & gem.header1) >> 60;
   ZeroFlag =  (0x0f00000000000000 & gem.header1) >> 56; 
   LV1ID    =  (0x00ffffff00000000 & gem.header1) >> 32; 
-  BXID     =  (0x00000000ffffffff & gem.header1) >> 20 
+  BXID     =  (0x00000000ffffffff & gem.header1) >> 20; 
   DataLgth =  (0x00000000000fffff & gem.header1);
 
   DEBUG(" ::GEMfillHeaders event " << event << " LV1ID " << LV1ID << " BXID " << BXID);
