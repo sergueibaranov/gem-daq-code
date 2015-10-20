@@ -248,7 +248,6 @@ uint32_t* gem::readout::GEMDataParker::selectData(uint32_t Counter[5])
   Counter[2] = *(pDQ+2);
   Counter[3] = *(pDQ+3);
   Counter[4] = *(pDQ+4);
-  Counter[5] = *(pDQ+5);
 
   return point;
 }

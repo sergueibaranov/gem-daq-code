@@ -614,12 +614,11 @@ bool gem::supervisor::GEMGLIBSupervisorWeb::selectAction(toolbox::task::WorkLoop
   uint32_t  Counter[5] = {0,0,0,0,0};
   uint32_t* pDQ =  gemDataParker->selectData(Counter);
   if (pDQ) {
-    Counter[0] = *(pDQ+0);
+    Counter[0] = *(pDQ+0); // VFAT block counter
     Counter[1] = *(pDQ+1); // Events counter
-    Counter[2] = *(pDQ+2); 
-    Counter[3] = *(pDQ+3);
-    Counter[4] = *(pDQ+4);
-    Counter[5] = *(pDQ+5);
+    Counter[2] = *(pDQ+2); // Counter[3]+Counter[4], last event
+    Counter[3] = *(pDQ+3); // good VFAT's blocks, last event
+    Counter[4] = *(pDQ+4); // bad VFAT's block, last event 
   }
 
   if (is_running_) {return true;} else {return false;}
