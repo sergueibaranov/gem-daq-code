@@ -100,7 +100,6 @@ uint32_t* gem::readout::GEMDataParker::dumpData(uint8_t const& readout_mask)
     counter_[2] = *(pDu+2);
     counter_[3] = *(pDu+3);
     counter_[4] = *(pDu+4);
-    counter_[5] = *(pDu+5);
     DEBUG(" ::dumpData link0 " << " counter VFATs " << counter_[0] << " , per event counter VFATs " << counter_[2] << 
           " event [1] " << counter_[1] );
   }
@@ -112,7 +111,6 @@ uint32_t* gem::readout::GEMDataParker::dumpData(uint8_t const& readout_mask)
     counter_[2] = *(pDu+2);
     counter_[3] = *(pDu+3);
     counter_[4] = *(pDu+4);
-    counter_[5] = *(pDu+5);
   }
   //if [16-23] in deviceNum
   if (readout_mask & 0x4) {
@@ -122,7 +120,6 @@ uint32_t* gem::readout::GEMDataParker::dumpData(uint8_t const& readout_mask)
     counter_[2] = *(pDu+2);
     counter_[3] = *(pDu+3);
     counter_[4] = *(pDu+4);
-    counter_[5] = *(pDu+5);
   }
 
   DEBUG(" ::dumpData link0 " << " counter VFATs " << counter_[0] << " , per event counter VFATs " << counter_[2] << 
