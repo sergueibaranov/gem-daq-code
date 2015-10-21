@@ -284,21 +284,21 @@ class gemTreeReader {
         logger_->addEvent(i,eventIsOK,nVFAT[0],nGoodVFAT[0],nBadVFAT[0]);
       }// end of loop over events
       logger_->writeLog();
-      //delete logger_;
-      //for (int st = 0; st < 3; st++){
-      //  dir[st]->cd();
-      //  setTitles(hiVFAT[st], "Number VFAT blocks per Event", "Number of Events");   
-      //  setTitles(hiChip[st], "ChipID value, max 0xfff", "Number of VFAT blocks");
-      //  setTitles(hi1010[st], "1010 marker, max 0xf", "Number of VFAT blocks");   
-      //  setTitles(hi1100[st], "1100 marker, max 0xf", "Number of VFAT blocks");   
-      //  setTitles(hi1110[st], "1110 marker, max 0xf", "Number of VFAT blocks");   
-      //  setTitles(hiFlag[st], "Flag marker value, max 0xf", "Number of VFAT blocks");   
-      //  setTitles(hiCRC[st], "CRC value, max 0xffff", "Number of VFAT blocks");
-      //  setTitles(hiDiffCRC[st], "CRC difference", "Number of VFAT blocks");
-      //  setTitles(hiFake[st], "Fake events", "Number of Events");
-      //  setTitles(hiCh128[st], "Strips, max 128", "Number of VFAT blocks"); 
-      //  setTitles(hi2DCRC[st], "CRC VFAT", "CRC calc");  
-      //}
+      delete logger_;
+      for (int st = 0; st < 3; st++){
+        dir[st]->cd();
+        setTitles(hiVFAT[st], "Number VFAT blocks per Event", "Number of Events");   
+        setTitles(hiChip[st], "ChipID value, max 0xfff", "Number of VFAT blocks");
+        setTitles(hi1010[st], "1010 marker, max 0xf", "Number of VFAT blocks");   
+        setTitles(hi1100[st], "1100 marker, max 0xf", "Number of VFAT blocks");   
+        setTitles(hi1110[st], "1110 marker, max 0xf", "Number of VFAT blocks");   
+        setTitles(hiFlag[st], "Flag marker value, max 0xf", "Number of VFAT blocks");   
+        setTitles(hiCRC[st], "CRC value, max 0xffff", "Number of VFAT blocks");
+        setTitles(hiDiffCRC[st], "CRC difference", "Number of VFAT blocks");
+        setTitles(hiFake[st], "Fake events", "Number of Events");
+        setTitles(hiCh128[st], "Strips, max 128", "Number of VFAT blocks"); 
+        setTitles(hi2DCRC[st], "CRC VFAT", "CRC calc");  
+      }
       ofile->Write();
       //drawStack(dir[1], dir[2], 4, 2, "png", "hist/stacks/");
       //TString prefix[3] = {"hist/all_events/", "hist/good_events/", "hist/bad_events/"};
