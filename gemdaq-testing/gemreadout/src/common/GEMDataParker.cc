@@ -269,12 +269,12 @@ uint32_t* gem::readout::GEMDataParker::GEMEventMaker(uint32_t Counter[5])
     isFirst = false;
   } else { 
     isFirst = true;
-
+    
     if ( vfats.size() != 0 || erros.size() != 0 ) {
       DEBUG(" ::GEMEventMaker isFirst GEMevSelector ");
       gem::readout::GEMDataParker::GEMevSelector(ESexp);
     } 
-
+    
     event_++;
     // VFATS dimensions have limits
     vfats.reserve(MaxVFATS);
@@ -297,7 +297,7 @@ uint32_t* gem::readout::GEMDataParker::GEMEventMaker(uint32_t Counter[5])
   Counter[3] = vfats.size();
   Counter[4] = erros.size();
 
-  return point;
+return point;
 }
 
 void gem::readout::GEMDataParker::GEMevSelector(const  uint32_t& ES)
