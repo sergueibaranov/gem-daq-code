@@ -163,6 +163,7 @@ void gem::supervisor::GEMGLIBSupervisorWeb::actionPerformed(xdata::Event& event)
         ss << "Device name: " << chip->toString() << std::endl;
       }
     INFO(ss.str());
+    slotInfo = std::unique_ptr<gem::readout::GEMslotContents>(new gem::readout::GEMslotContents(confParams_.bag.slotFileName.toString()));
   }
 
   // get the workloop instance after loading config parameters
@@ -298,8 +299,10 @@ void gem::supervisor::GEMGLIBSupervisorWeb::webDefault(xgi::Input * in, xgi::Out
        << cgicc::tr() << cgicc::br() << std::endl
        << cgicc::tbody() << std::endl << cgicc::br()
        << cgicc::table() << std::endl << cgicc::br();
-  *out << "VFAT blocks counter: "       << m_counter[0] << " dumped to disk" << std::endl << cgicc::br();
+  *out << "VFAT blocks counter:       " << m_counter[0] << " dumped to disk" << std::endl << cgicc::br();
   *out << "VFATs counter, last event: " << m_counter[2] << " VFATs chips"    << std::endl << cgicc::br();
+  *out << "VFAT good blocks counter:  " << m_counter[3] << " dumped to GEMDAQ" << std::endl << cgicc::br();
+  *out << "VFAT bad blocks counter:   " << m_counter[4] << " dumped to ERRORS" << std::endl << cgicc::br();
   *out << "Output filename: " << confParams_.bag.outFileName.toString() << std::endl << cgicc::br();
   *out << "Output type: "     << confParams_.bag.outputType.toString()  << std::endl << cgicc::br();
 
@@ -680,7 +683,7 @@ bool gem::supervisor::GEMGLIBSupervisorWeb::runAction(toolbox::task::WorkLoop *w
   hw_semaphore_.take();
 
   uint32_t bufferDepth = 0;
-  bufferDepth = glibDevice_->getFIFOVFATBlockOccupancy(0x0);
+  bufferDepth = glibDevice_->getFIFOVFATBlockOccupancy(readout_mask);
   wl_semaphore_.give();
   hw_semaphore_.give();
 
@@ -762,6 +765,7 @@ void gem::supervisor::GEMGLIBSupervisorWeb::configureAction(toolbox::Event::Refe
 
   // Setup file, information header
   std::string SetupFileName = "Setup_";
+  SetupFileName.append(toolbox::toString("GTX%d_",confParams_.bag.ohGTXLink.value_));
   SetupFileName.append(utcTime);
   SetupFileName.erase(std::remove(SetupFileName.begin(), SetupFileName.end(), '\n'), SetupFileName.end());
   SetupFileName.append(".txt");
@@ -782,6 +786,9 @@ void gem::supervisor::GEMGLIBSupervisorWeb::configureAction(toolbox::Event::Refe
     if (VfatName != ""){ 
       vfat_shared_ptr tmpVFATDevice(new gem::hw::vfat::HwVFAT2(VfatName, tmpURI.str(),
                                                                "file://${GEM_ADDRESS_TABLE_PATH}/glib_address_table.xml"));
+      tmpVFATDevice->setDeviceBaseNode(toolbox::toString("GLIB.OptoHybrid_%d.OptoHybrid.GEB.VFATS.%s",
+                                                         confParams_.bag.ohGTXLink.value_,
+                                                         VfatName.c_str()));
       tmpVFATDevice->setDeviceIPAddress(confParams_.bag.deviceIP);
       tmpVFATDevice->setRunMode(0);
       // need to put all chips in sleep mode to start off
@@ -822,7 +829,7 @@ void gem::supervisor::GEMGLIBSupervisorWeb::configureAction(toolbox::Event::Refe
   std::replace(tmpFileName.begin(), tmpFileName.end(), ':', '-');
 
   std::string errFileName = "ERRORS_";
-  errFileName.append(toolbox::toString("_GTX%d",confParams_.bag.ohGTXLink.value_));
+  errFileName.append(toolbox::toString("GTX%d_",confParams_.bag.ohGTXLink.value_));
   errFileName.append(utcTime);
   errFileName.erase(std::remove(errFileName.begin(), errFileName.end(), '\n'), errFileName.end());
   errFileName.append(".dat");
@@ -868,8 +875,7 @@ void gem::supervisor::GEMGLIBSupervisorWeb::configureAction(toolbox::Event::Refe
                << (uint32_t)((*chip)->getChipID())  << std::dec);
           INFO((*chip)->printErrorCounts());
 
-          int islot = gem::readout::GEMslotContents::GEBslotIndex( (uint32_t)((*chip)->getChipID()),
-                                                                   confParams_.bag.slotFileName.toString());
+          int islot = slotInfo->GEBslotIndex( (uint32_t)((*chip)->getChipID()));
 
           if (SetupFile.is_open()){
             SetupFile << " VFAT device connected: slot "
@@ -937,7 +943,8 @@ void gem::supervisor::GEMGLIBSupervisorWeb::startAction(toolbox::Event::Referenc
   glibDevice_->flushFIFO(readout_mask);
   while (glibDevice_->hasTrackingData(readout_mask)) {
     glibDevice_->flushFIFO(readout_mask);
-    std::vector<uint32_t> dumping = glibDevice_->getTrackingData(readout_mask);
+    std::vector<uint32_t> dumping = glibDevice_->getTrackingData(readout_mask,
+                                                                 glibDevice_->getFIFOVFATBlockOccupancy(readout_mask));
   }
   // once more for luck
   glibDevice_->flushFIFO(readout_mask);
@@ -962,7 +969,7 @@ void gem::supervisor::GEMGLIBSupervisorWeb::startAction(toolbox::Event::Referenc
   }
 
   INFO("setTrigSource OH Trigger source 0x" << std::hex << confParams_.bag.triggerSource << std::dec);
-  glibDevice_->flushFIFO(0);
+  glibDevice_->flushFIFO(readout_mask);
   optohybridDevice_->sendResync();
   optohybridDevice_->sendBC0();
   optohybridDevice_->sendResync();
@@ -996,18 +1003,14 @@ void gem::supervisor::GEMGLIBSupervisorWeb::stopAction(toolbox::Event::Reference
   }
   // flush FIFO, how to disable a specific, misbehaving, chip
   INFO("Flushing the FIFOs, readout_mask 0x" <<std::hex << (int)readout_mask << std::dec);
-  for (int i = 0; i < 2; ++i) {
-    DEBUG("Flushing FIFO" << i << " (depth " << glibDevice_->getFIFOOccupancy(i));
-    if ((readout_mask >> i)&0x1) {
-      DEBUG("Flushing FIFO" << i << " (depth " << glibDevice_->getFIFOOccupancy(i));
-      glibDevice_->flushFIFO(i);
-      while (glibDevice_->hasTrackingData(i)) {
-        glibDevice_->flushFIFO(i);
-        std::vector<uint32_t> dumping = glibDevice_->getTrackingData(i);
-      }
-      glibDevice_->flushFIFO(i);
-    }
+  glibDevice_->flushFIFO(readout_mask);
+  while (glibDevice_->hasTrackingData(readout_mask)) {
+    glibDevice_->flushFIFO(readout_mask);
+    std::vector<uint32_t> dumping = glibDevice_->getTrackingData(readout_mask,
+                                                                 glibDevice_->getFIFOVFATBlockOccupancy(readout_mask));
   }
+  // once more for luck
+  glibDevice_->flushFIFO(readout_mask);
 
   wl_->submit(select_signature_);
 }
@@ -1023,18 +1026,14 @@ void gem::supervisor::GEMGLIBSupervisorWeb::haltAction(toolbox::Event::Reference
   }
   // flush FIFO, how to disable a specific, misbehaving, chip
   INFO("Flushing the FIFOs, readout_mask 0x" <<std::hex << (int)readout_mask << std::dec);
-  for (int i = 0; i < 2; ++i) {
-    DEBUG("Flushing FIFO" << i << " (depth " << glibDevice_->getFIFOOccupancy(i));
-    if ((readout_mask >> i)&0x1) {
-      DEBUG("Flushing FIFO" << i << " (depth " << glibDevice_->getFIFOOccupancy(i));
-      glibDevice_->flushFIFO(i);
-      while (glibDevice_->hasTrackingData(i)) {
-        glibDevice_->flushFIFO(i);
-        std::vector<uint32_t> dumping = glibDevice_->getTrackingData(i);
-      }
-      glibDevice_->flushFIFO(i);
-    }
+  glibDevice_->flushFIFO(readout_mask);
+  while (glibDevice_->hasTrackingData(readout_mask)) {
+    glibDevice_->flushFIFO(readout_mask);
+    std::vector<uint32_t> dumping = glibDevice_->getTrackingData(readout_mask,
+                                                                 glibDevice_->getFIFOVFATBlockOccupancy(readout_mask));
   }
+  // once more for luck
+  glibDevice_->flushFIFO(readout_mask);
 
   wl_->submit(select_signature_);
   is_configured_ = false;
